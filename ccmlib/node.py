@@ -498,6 +498,11 @@ class Node(object):
         self.__update_status()
         return self.status == Status.UP
 
+    def is_converged_core(self):
+        """ TODO modularise out to separate cluster type under "cc/" (when conditionals tech debt costs) """
+        dse_db_jar = glob.glob(os.path.join(self.get_install_dir(), '**', 'dse-db-*.jar'), recursive=True)
+        return dse_db_jar and 0 < len(dse_db_jar)
+
     def log_directory(self):
         return os.path.join(self.get_path(), 'logs')
 
@@ -1241,6 +1246,8 @@ class Node(object):
     def clear(self, clear_all=False, only_data=False):
         data_dirs = ['data{0}'.format(x) for x in xrange(0, self.cluster.data_dir_count)]
         data_dirs.append("commitlogs")
+        if self.is_converged_core():
+            data_dirs.append("metadata")
         if clear_all:
             data_dirs.extend(['saved_caches', 'logs'])
         for d in data_dirs:
@@ -1819,7 +1826,7 @@ class Node(object):
         data['commitlog_directory'] = os.path.join(self.get_path(), 'commitlogs')
         data['saved_caches_directory'] = os.path.join(self.get_path(), 'saved_caches')
 
-        if 'metadata_directory' in data:
+        if self.is_converged_core():
             data['metadata_directory'] = os.path.join(self.get_path(), 'metadata')
 
         if self.get_cassandra_version() > '3.0' and 'hints_directory' in yaml_text:
