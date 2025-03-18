@@ -213,9 +213,20 @@ Where things are stored
 By default, ccm stores all the node data and configuration files under `~/.ccm/cluster_name/`.
 This can be overridden using the `--config-dir` option with each command.
 
-DataStax Enterprise
--------------------
 
-CCM 2.0 supports creating and interacting with DSE clusters. The --dse
-option must be used with the `ccm create` command. See the `ccm create -h`
-help for assistance.
+
+Third Party Clusters
+====================
+
+`ccmlib.Cluster` and `ccmlib.Node` are designed to be extended for third party cluster types.  DataStax Enterprise (DSE) and Hyper Converged Database (HCD) are example implementations.
+
+DataStax Enterprise (DSE)
+-------------------------
+
+CCM 2.0 supports creating and interacting with DSE clusters. The `--dse` option must be used with the `ccm create` command. See the `ccm create -h` help for assistance.
+
+
+Hyper Converged Database (HCD)
+------------------------------
+
+The `--hcd` option must be used with the `ccm create` command. See the `ccm create -h` help for assistance.
