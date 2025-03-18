@@ -115,6 +115,27 @@ class Node(object):
     Provides interactions to a Cassandra node.
     """
 
+
+    @staticmethod
+    def get_version_from_build(install_dir=None, node_path=None, cassandra=False):
+        if install_dir is None and node_path is not None:
+            install_dir = get_install_dir_from_cluster_conf(node_path)
+        if install_dir is not None:
+            # Binary cassandra installs will have a 0.version.txt file
+            version_file = os.path.join(install_dir, '0.version.txt')
+            if os.path.exists(version_file):
+                with open(version_file) as f:
+                    return LooseVersion(f.read().strip())
+            # Source cassandra installs we can read from build.xml
+            build = os.path.join(install_dir, 'build.xml')
+            with open(build) as f:
+                for line in f:
+                    match = re.search('name="base\.version" value="([0-9.]+)[^"]*"', line)
+                    if match:
+                        return LooseVersion(match.group(1))
+        raise common.CCMError("Cannot find version")
+
+
     def __init__(self,
                  name,
                  cluster,
@@ -175,8 +196,10 @@ class Node(object):
             self._cassandra_version = derived_cassandra_version
         else:
             try:
-                self._cassandra_version = common.get_version_from_build(self.get_install_dir(), cassandra=True)
-            except common.CCMError:
+                self._cassandra_version = self.get_version_from_build(self.get_install_dir(), cassandra=True)
+                # call get_base_cassandra_version() to validate _cassandra_version
+                self.get_base_cassandra_version()
+            except (common.CCMError, ValueError):
                 self._cassandra_version = self.cluster.cassandra_version()
 
         if save:
@@ -350,7 +373,7 @@ class Node(object):
         else:
             self.__install_dir = self.node_setup(version, verbose=verbose)
 
-        self._cassandra_version = common.get_version_from_build(self.__install_dir, cassandra=True)
+        self._cassandra_version = self.get_version_from_build(self.__install_dir, cassandra=True)
 
         if self.get_base_cassandra_version() >= 4.0:
             self.network_interfaces['thrift'] = None
@@ -1887,7 +1910,7 @@ class Node(object):
 
         common.replace_in_file(conf_file, jmx_port_pattern, jmx_port_setting)
 
-        if common.is_modern_windows_install(common.get_version_from_build(node_path=self.get_path())):
+        if common.is_modern_windows_install(self.get_version_from_build(node_path=self.get_path())):
             dst = os.path.join(self.get_conf_dir(), common.CASSANDRA_WIN_ENV)
             replacements = [
                 ('env:CASSANDRA_HOME =', '        $env:CASSANDRA_HOME="%s"' % self.get_install_dir()),
@@ -2365,3 +2388,13 @@ def handle_external_tool_process(process, cmd_args):
 
     ret = namedtuple('Subprocess_Return', 'stdout stderr rc')
     return ret(stdout=out, stderr=err, rc=rc)
+
+
+def get_install_dir_from_cluster_conf(node_path):
+    file = os.path.join(os.path.dirname(node_path), "cluster.conf")
+    with open(file) as f:
+        for line in f:
+            match = re.search('install_dir: (.*?)$', line)
+            if match:
+                return match.group(1)
+    return None

@@ -15,7 +15,7 @@
 # limitations under the License.
 
 
-# ccm clusters
+# DataStax DSE clusters
 
 from __future__ import absolute_import
 
@@ -23,13 +23,12 @@ import os
 import shutil
 import signal
 import subprocess
-import sys
-
-from six import iteritems, print_
+from argparse import ArgumentError
 
 from ccmlib import common, repository
 from ccmlib.cluster import Cluster
-from ccmlib.dse_node import DseNode
+from ccmlib.common import ArgumentError
+from ccmlib.dse.dse_node import DseNode, get_dse_cassandra_version
 
 try:
     import ConfigParser
@@ -37,23 +36,70 @@ except ImportError:
     import configparser as ConfigParser
 
 
+DSE_CASSANDRA_CONF_DIR = "resources/cassandra/conf"
+OPSCENTER_CONF_DIR = "conf"
+
+
+def isDse(install_dir, options=None):
+    if install_dir is None:
+        raise ArgumentError('Undefined installation directory')
+    bin_dir = os.path.join(install_dir, common.BIN_DIR)
+    if options and options.dse and './' != install_dir and not os.path.exists(bin_dir):
+        raise ArgumentError('Installation directory does not contain a bin directory: %s' % install_dir)
+    if options and options.dse:
+        return True
+    dse_script = os.path.join(bin_dir, 'dse')
+    if options and not options.dse and './' != install_dir and os.path.exists(dse_script):
+        raise ArgumentError('Installation directory is DSE but options did not specify `--dse`: %s' % install_dir)
+    return os.path.exists(dse_script)
+
+
+def isOpscenter(install_dir, options=None):
+    if install_dir is None:
+        raise ArgumentError('Undefined installation directory')
+    bin_dir = os.path.join(install_dir, common.BIN_DIR)
+    if options and options.dse and './' != install_dir and not os.path.exists(bin_dir):
+        raise ArgumentError('Installation directory does not contain a bin directory')
+    opscenter_script = os.path.join(bin_dir, 'opscenter')
+    return os.path.exists(opscenter_script)
+
+
+def isDseClusterType(install_dir, options=None):
+    if isDse(install_dir, options) or isOpscenter(install_dir, options):
+        return DseCluster
+    return None
+
+
 class DseCluster(Cluster):
 
-    def __init__(self, path, name, partitioner=None, install_dir=None, create_directory=True, version=None, dse_username=None, dse_password=None, dse_credentials_file=None, opscenter=None, verbose=False, derived_cassandra_version=None, configuration_yaml=None):
+    @staticmethod
+    def getConfDir(install_dir):
+        if isDse(install_dir):
+            return os.path.join(install_dir, DSE_CASSANDRA_CONF_DIR)
+        elif isOpscenter(install_dir):
+            return  os.path.join(os.path.join(install_dir, OPSCENTER_CONF_DIR), common.CASSANDRA_CONF)
+        raise RuntimeError("illegal call to DseCluster.getConfDir() when not dse or opscenter")
+
+    @staticmethod
+    def getNodeClass():
+        return DseNode
+
+
+    def __init__(self, path, name, partitioner=None, install_dir=None, create_directory=True, version=None, verbose=False, derived_cassandra_version=None, options=None):
         self.dse_username = None
         self.dse_password = None
-        self.load_credentials_from_file(dse_credentials_file)
-        if dse_username is not None:
-            self.dse_username = dse_username
-        if dse_password is not None:
-            self.dse_password = dse_password
-
-        self.opscenter = opscenter
+        self.load_credentials_from_file(options.dse_credentials_file if options else None)
+        if options and options.dse_username is not None:
+            self.dse_username = options.dse_username
+        if options and options.dse_password is not None:
+            self.dse_password = options.dse_password
+        if options and options.opscenter is not None:
+            self.opscenter = options.opscenter
         self._cassandra_version = None
         if derived_cassandra_version:
             self._cassandra_version = derived_cassandra_version
 
-        super(DseCluster, self).__init__(path, name, partitioner, install_dir, create_directory, version, verbose, configuration_yaml=configuration_yaml)
+        super(DseCluster, self).__init__(path, name, partitioner, install_dir, create_directory, version, verbose, options=options)
 
     def load_from_repository(self, version, verbose):
         if self.opscenter is not None:
@@ -89,6 +135,9 @@ class DseCluster(Cluster):
     def create_node(self, name, auto_bootstrap, thrift_interface, storage_interface, jmx_port, remote_debug_port, initial_token, save=True, binary_interface=None, byteman_port='0', environment_variables=None,derived_cassandra_version=None):
         return DseNode(name, self, auto_bootstrap, thrift_interface, storage_interface, jmx_port, remote_debug_port, initial_token, save, binary_interface, byteman_port, environment_variables=environment_variables, derived_cassandra_version=derived_cassandra_version)
 
+    def can_generate_tokens(self):
+        return False
+
     def start(self, no_wait=False, verbose=False, wait_for_binary_proto=False, wait_other_notice=True, jvm_args=None, profile_options=None, quiet_start=False, allow_root=False, jvm_version=None):
         if jvm_args is None:
             jvm_args = []
@@ -113,7 +162,7 @@ class DseCluster(Cluster):
 
     def cassandra_version(self):
         if self._cassandra_version is None:
-            self._cassandra_version = common.get_dse_cassandra_version(self.get_install_dir())
+            self._cassandra_version = get_dse_cassandra_version(self.get_install_dir())
         return self._cassandra_version
 
     def enable_aoss(self):

@@ -14,4 +14,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+# load __init__.py from cluster type plugin implementation packages
+from ccmlib import dse

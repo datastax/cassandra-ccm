@@ -45,8 +45,7 @@ from ccmlib.common import (ArgumentError, CCMError,
                            platform_binary, rmdirs, validate_install_dir)
 from six.moves import urllib
 
-DSE_ARCHIVE = "http://downloads.datastax.com/enterprise/dse-%s-bin.tar.gz"
-OPSC_ARCHIVE = "http://downloads.datastax.com/enterprise/opscenter-%s.tar.gz"
+
 ARCHIVE = "http://archive.apache.org/dist/cassandra"
 GIT_REPO = "https://github.com/apache/cassandra.git"
 GITHUB_REPO = "https://github.com/apache/cassandra"
@@ -287,66 +286,6 @@ def clone_development(git_repo, version, verbose=False, alias=False):
                    ))
         finally:
             raise e
-
-
-def download_dse_version(version, username, password, verbose=False):
-    url = DSE_ARCHIVE
-    if CCM_CONFIG.has_option('repositories', 'dse'):
-        url = CCM_CONFIG.get('repositories', 'dse')
-
-    url = url % version
-    _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
-    try:
-        if username is None:
-            common.warning("No dse username detected, specify one using --dse-username or passing in a credentials file using --dse-credentials.")
-        if password is None:
-            common.warning("No dse password detected, specify one using --dse-password or passing in a credentials file using --dse-credentials.")
-        __download(url, target, username=username, password=password, show_progress=verbose)
-        common.debug("Extracting {} as version {} ...".format(target, version))
-        tar = tarfile.open(target)
-        dir = tar.next().name.split("/")[0]  # pylint: disable=all
-        tar.extractall(path=__get_dir())
-        tar.close()
-        target_dir = os.path.join(__get_dir(), version)
-        if os.path.exists(target_dir):
-            rmdirs(target_dir)
-        shutil.move(os.path.join(__get_dir(), dir), target_dir)
-    except urllib.error.URLError as e:
-        msg = "Invalid version %s" % version if url is None else "Invalid url %s" % url
-        msg = msg + " (underlying error is: %s)" % str(e)
-        raise ArgumentError(msg)
-    except tarfile.ReadError as e:
-        raise ArgumentError("Unable to uncompress downloaded file: %s" % str(e))
-
-
-def download_opscenter_version(version, username, password, target_version, verbose=False):
-    url = OPSC_ARCHIVE
-    if CCM_CONFIG.has_option('repositories', 'opscenter'):
-        url = CCM_CONFIG.get('repositories', 'opscenter')
-
-    url = url % version
-    _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
-    try:
-        if username is None:
-            common.warning("No dse username detected, specify one using --dse-username or passing in a credentials file using --dse-credentials.")
-        if password is None:
-            common.warning("No dse password detected, specify one using --dse-password or passing in a credentials file using --dse-credentials.")
-        __download(url, target, username=username, password=password, show_progress=verbose)
-        common.info("Extracting {} as version {} ...".format(target, target_version))
-        tar = tarfile.open(target)
-        dir = tar.next().name.split("/")[0]  # pylint: disable=all
-        tar.extractall(path=__get_dir())
-        tar.close()
-        target_dir = os.path.join(__get_dir(), target_version)
-        if os.path.exists(target_dir):
-            rmdirs(target_dir)
-        shutil.move(os.path.join(__get_dir(), dir), target_dir)
-    except urllib.error.URLError as e:
-        msg = "Invalid version {}".format(version) if url is None else "Invalid url {}".format(url)
-        msg = msg + " (underlying error is: {})".format(str(e))
-        raise ArgumentError(msg)
-    except tarfile.ReadError as e:
-        raise ArgumentError("Unable to uncompress downloaded file: {}".format(str(e)))
 
 
 def download_version(version, url=None, verbose=False, binary=False):

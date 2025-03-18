@@ -22,16 +22,21 @@ import os
 import re
 import shutil
 import signal
-import stat
 import subprocess
-import time
+import tarfile
+import tempfile
 
 import yaml
-from six import iteritems, print_
+from distutils.version import LooseVersion
+from six.moves import urllib
 
-from ccmlib import common, extension, repository
-from ccmlib.node import (Node, NodeError, ToolError,
-                         handle_external_tool_process)
+from ccmlib import common, extension, node, repository
+from ccmlib.common import ArgumentError, rmdirs
+from ccmlib.node import Node, handle_external_tool_process
+
+
+DSE_ARCHIVE = "http://downloads.datastax.com/enterprise/dse-%s-bin.tar.gz"
+OPSC_ARCHIVE = "http://downloads.datastax.com/enterprise/opscenter-%s.tar.gz"
 
 
 class DseNode(Node):
@@ -39,6 +44,28 @@ class DseNode(Node):
     """
     Provides interactions to a DSE node.
     """
+
+    @staticmethod
+    def get_version_from_build(install_dir=None, node_path=None, cassandra=False):
+        if install_dir is None and node_path is not None:
+            install_dir = node.get_install_dir_from_cluster_conf(node_path)
+        if install_dir is not None:
+            # Binary cassandra installs will have a 0.version.txt file
+            version_file = os.path.join(install_dir, '0.version.txt')
+            if os.path.exists(version_file):
+                with open(version_file) as f:
+                    return LooseVersion(f.read().strip())
+            # For DSE look for a dse*.jar and extract the version number
+            dse_version = get_dse_version(install_dir)
+            if (dse_version is not None):
+                if cassandra:
+                    return get_dse_cassandra_version(install_dir)
+                else:
+                    return LooseVersion(dse_version)
+            # Source cassandra installs we can read from build.xml
+            return Node.get_version_from_build(install_dir, cassandra)
+        raise common.CCMError("Cannot find version")
+
 
     def __init__(self, name, cluster, auto_bootstrap, thrift_interface, storage_interface, jmx_port, remote_debug_port, initial_token, save=True, binary_interface=None, byteman_port='0', environment_variables=None, derived_cassandra_version=None):
         super(DseNode, self).__init__(name, cluster, auto_bootstrap, thrift_interface, storage_interface, jmx_port, remote_debug_port, initial_token, save, binary_interface, byteman_port, environment_variables=environment_variables, derived_cassandra_version=derived_cassandra_version)
@@ -66,7 +93,7 @@ class DseNode(Node):
         return [common.join_bin(os.path.join(self.get_install_dir(), 'resources', 'cassandra'), 'bin', 'dse'), toolname]
 
     def get_env(self):
-        return common.make_dse_env(self.get_install_dir(), self.get_path(), self.ip_addr)
+        return self.make_dse_env(self.get_install_dir(), self.get_path(), self.ip_addr)
 
     def node_setup(self, version, verbose):
         dir, v = repository.setup_dse(version, self.cluster.dse_username, self.cluster.dse_password, verbose=verbose)
@@ -504,3 +531,122 @@ class DseNode(Node):
             dir = env[e]
             if not os.path.exists(dir):
                 os.makedirs(dir)
+
+    def make_dse_env(self, install_dir, node_path, node_ip):
+        version = self.get_version_from_build(node_path=node_path)
+        env = os.environ.copy()
+        env['MAX_HEAP_SIZE'] = os.environ.get('CCM_MAX_HEAP_SIZE', '500M')
+        env['HEAP_NEWSIZE'] = os.environ.get('CCM_HEAP_NEWSIZE', '50M')
+        if version < '6.0':
+            env['SPARK_WORKER_MEMORY'] = os.environ.get('SPARK_WORKER_MEMORY', '1024M')
+            env['SPARK_WORKER_CORES'] = os.environ.get('SPARK_WORKER_CORES', '2')
+        else:
+            env['ALWAYSON_SQL_LOG_DIR'] = os.path.join(node_path, 'logs')
+        env['DSE_HOME'] = os.path.join(install_dir)
+        env['DSE_CONF'] = os.path.join(node_path, 'resources', 'dse', 'conf')
+        env['CASSANDRA_HOME'] = os.path.join(install_dir, 'resources', 'cassandra')
+        env['CASSANDRA_CONF'] = os.path.join(node_path, 'resources', 'cassandra', 'conf')
+        env['HIVE_CONF_DIR'] = os.path.join(node_path, 'resources', 'hive', 'conf')
+        env['SQOOP_CONF_DIR'] = os.path.join(node_path, 'resources', 'sqoop', 'conf')
+        env['TOMCAT_HOME'] = os.path.join(node_path, 'resources', 'tomcat')
+        env['TOMCAT_CONF_DIR'] = os.path.join(node_path, 'resources', 'tomcat', 'conf')
+        env['PIG_CONF_DIR'] = os.path.join(node_path, 'resources', 'pig', 'conf')
+        env['MAHOUT_CONF_DIR'] = os.path.join(node_path, 'resources', 'mahout', 'conf')
+        env['SPARK_CONF_DIR'] = os.path.join(node_path, 'resources', 'spark', 'conf')
+        env['SHARK_CONF_DIR'] = os.path.join(node_path, 'resources', 'shark', 'conf')
+        env['GREMLIN_CONSOLE_CONF_DIR'] = os.path.join(node_path, 'resources', 'graph', 'gremlin-console', 'conf')
+        env['SPARK_WORKER_DIR'] = os.path.join(node_path, 'spark', 'worker')
+        env['SPARK_LOCAL_DIRS'] = os.path.join(node_path, 'spark', '.local')
+        env['SPARK_EXECUTOR_DIRS'] = os.path.join(node_path, 'spark', 'rdd')
+        env['SPARK_WORKER_LOG_DIR'] = os.path.join(node_path, 'logs', 'spark', 'worker')
+        env['SPARK_MASTER_LOG_DIR'] = os.path.join(node_path, 'logs', 'spark', 'master')
+        env['DSE_LOG_ROOT'] = os.path.join(node_path, 'logs', 'dse')
+        env['CASSANDRA_LOG_DIR'] = os.path.join(node_path, 'logs')
+        env['SPARK_LOCAL_IP'] = '' + node_ip
+        if version >= '5.0':
+            env['HADOOP1_CONF_DIR'] = os.path.join(node_path, 'resources', 'hadoop', 'conf')
+            env['HADOOP2_CONF_DIR'] = os.path.join(node_path, 'resources', 'hadoop2-client', 'conf')
+        else:
+            env['HADOOP_CONF_DIR'] = os.path.join(node_path, 'resources', 'hadoop', 'conf')
+        return env
+
+    def download_dse_version(self, version, username, password, verbose=False):
+        url = DSE_ARCHIVE
+        if repository.CCM_CONFIG.has_option('repositories', 'dse'):
+            url = repository.CCM_CONFIG.get('repositories', 'dse')
+
+        url = url % version
+        _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
+        try:
+            if username is None:
+                common.warning("No dse username detected, specify one using --dse-username or passing in a credentials file using --dse-credentials.")
+            if password is None:
+                common.warning("No dse password detected, specify one using --dse-password or passing in a credentials file using --dse-credentials.")
+            repository.__download(url, target, username=username, password=password, show_progress=verbose)
+            common.debug("Extracting {} as version {} ...".format(target, version))
+            tar = tarfile.open(target)
+            dir = tar.next().name.split("/")[0]  # pylint: disable=all
+            tar.extractall(path=repository.__get_dir())
+            tar.close()
+            target_dir = os.path.join(repository.__get_dir(), version)
+            if os.path.exists(target_dir):
+                rmdirs(target_dir)
+            shutil.move(os.path.join(repository.__get_dir(), dir), target_dir)
+        except urllib.error.URLError as e:
+            msg = "Invalid version %s" % version if url is None else "Invalid url %s" % url
+            msg = msg + " (underlying error is: %s)" % str(e)
+            raise ArgumentError(msg)
+        except tarfile.ReadError as e:
+            raise ArgumentError("Unable to uncompress downloaded file: %s" % str(e))
+
+
+    def download_opscenter_version(self, version, username, password, target_version, verbose=False):
+        url = OPSC_ARCHIVE
+        if repository.CCM_CONFIG.has_option('repositories', 'opscenter'):
+            url = repository.CCM_CONFIG.get('repositories', 'opscenter')
+
+        url = url % version
+        _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
+        try:
+            if username is None:
+                common.warning("No dse username detected, specify one using --dse-username or passing in a credentials file using --dse-credentials.")
+            if password is None:
+                common.warning("No dse password detected, specify one using --dse-password or passing in a credentials file using --dse-credentials.")
+            repository.__download(url, target, username=username, password=password, show_progress=verbose)
+            common.info("Extracting {} as version {} ...".format(target, target_version))
+            tar = tarfile.open(target)
+            dir = tar.next().name.split("/")[0]  # pylint: disable=all
+            tar.extractall(path=repository.__get_dir())
+            tar.close()
+            target_dir = os.path.join(repository.__get_dir(), target_version)
+            if os.path.exists(target_dir):
+                rmdirs(target_dir)
+            shutil.move(os.path.join(repository.__get_dir(), dir), target_dir)
+        except urllib.error.URLError as e:
+            msg = "Invalid version {}".format(version) if url is None else "Invalid url {}".format(url)
+            msg = msg + " (underlying error is: {})".format(str(e))
+            raise ArgumentError(msg)
+        except tarfile.ReadError as e:
+            raise ArgumentError("Unable to uncompress downloaded file: {}".format(str(e)))
+
+
+def get_dse_version(install_dir):
+    for root, dirs, files in os.walk(install_dir):
+        for file in files:
+            match = re.search('^dse(?:-core)?-([0-9.]+)(?:-.*)?\.jar', file)
+            if match:
+                return match.group(1)
+    return None
+
+
+def get_dse_cassandra_version(install_dir):
+    dse_cmd = os.path.join(install_dir, 'bin', 'dse')
+    (output, stderr) = subprocess.Popen([dse_cmd, "cassandra", '-v'], stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE).communicate()
+    output = output.rstrip()
+    match = re.search('([0-9.]+)(?:-.*)?', str(output))
+    if match:
+        return LooseVersion(match.group(1))
+
+    raise ArgumentError("Unable to determine Cassandra version in: %s.\n\tstdout: '%s'\n\tstderr: '%s'"
+                        % (install_dir, output, stderr))
