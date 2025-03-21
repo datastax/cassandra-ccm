@@ -35,8 +35,8 @@ from ccmlib.common import ArgumentError, rmdirs
 from ccmlib.node import Node, handle_external_tool_process
 
 
-DSE_ARCHIVE = "http://downloads.datastax.com/enterprise/dse-%s-bin.tar.gz"
-OPSC_ARCHIVE = "http://downloads.datastax.com/enterprise/opscenter-%s.tar.gz"
+DSE_ARCHIVE = "https://downloads.datastax.com/enterprise/dse-%s-bin.tar.gz"
+OPSC_ARCHIVE = "https://downloads.datastax.com/enterprise/opscenter-%s.tar.gz"
 
 
 class DseNode(Node):

@@ -15,7 +15,7 @@
 # limitations under the License.
 
 
-# DataStax DSE clusters
+# DataStax Enterprise (DSE) clusters
 
 from __future__ import absolute_import
 

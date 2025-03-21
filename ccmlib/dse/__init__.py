@@ -25,7 +25,7 @@ from ccmlib.dse.dse_cluster import isDseClusterType
 extension.CLUSTER_TYPES.append(isDseClusterType)
 
 ClusterCreateCmd.options_list.extend([
-    (['-o', "--opsc"], {'type': "string", 'dest': "opscenter", 'help': "Download and use provided opscenter version to install with DSE. Will have no effect on cassandra installs)", 'default': None}),
+    (['-o', "--opsc"], {'type': "string", 'dest': "opscenter", 'help': "Download and use provided OpsCenter version to install with DSE. Will have no effect on cassandra installs)", 'default': None}),
     (["--dse"], {'action': "store_true", 'dest': "dse", 'help': "Use with -v or --install-dir to indicate that the version being loaded is DSE"}),
     (["--dse-username"], {'type': "string", 'dest': "dse_username", 'help': "The username to use to download DSE with", 'default': None}),
     (["--dse-password"], {'type': "string", 'dest': "dse_password", 'help': "The password to use to download DSE with", 'default': None}),

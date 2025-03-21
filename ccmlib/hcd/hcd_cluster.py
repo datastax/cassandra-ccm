@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# DataStax HCD clusters
+# DataStax Hyper-Converged Database (HCD) clusters
 
 from __future__ import absolute_import
 

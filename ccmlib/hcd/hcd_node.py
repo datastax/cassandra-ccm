@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# DataStax HCD node
+# DataStax Hyper-Converged Database (HCD) node
 
 from __future__ import absolute_import, with_statement
 
@@ -35,7 +35,7 @@ from ccmlib.node import Node
 
 
 
-HCD_ARCHIVE = "http://downloads.datastax.com/hcd/hcd-%s-bin.tar.gz"
+HCD_ARCHIVE = "https://downloads.datastax.com/hcd/hcd-%s-bin.tar.gz"
 
 class HcdNode(Node):
 
@@ -53,7 +53,7 @@ class HcdNode(Node):
             if os.path.exists(version_file):
                 with open(version_file) as f:
                     return LooseVersion(f.read().strip())
-            # For DSE look for a dse*.jar and extract the version number
+            # For HCD look for a hcd*.jar and extract the version number
             hcd_version = get_hcd_version(install_dir)
             if (hcd_version is not None):
                 if cassandra:
@@ -88,7 +88,7 @@ class HcdNode(Node):
 
     def get_env(self):
         env = self.make_hcd_env(self.get_install_dir(), self.get_path())
-        # adjust JAVA_HOME to one supported by this dse_version
+        # adjust JAVA_HOME to one supported by this hcd_version
         env = common.update_java_version(jvm_version=None,
                                          install_dir=self.get_install_dir(),
                                          env=env,
@@ -134,7 +134,7 @@ class HcdNode(Node):
     def export_hcd_home_in_hcd_env_sh(self):
         '''
         Due to the way CCM lays out files, separating the repository
-        from the node(s) confs, the `dse-env.sh` script of each node
+        from the node(s) confs, the `hcd-env.sh` script of each node
         needs to have its HCD_HOME var set and exported.
         The stock `hcd-env.sh` file includes a commented-out
         place to do exactly this, intended for installers.
@@ -143,8 +143,8 @@ class HcdNode(Node):
         'sstableloader' is an example of a node script that depends on
         this, when used in a CCM-built cluster.
         '''
-        with open(self.get_bin_dir() + "/hcd-env.sh", "r") as dse_env_sh:
-            buf = dse_env_sh.readlines()
+        with open(self.get_bin_dir() + "/hcd-env.sh", "r") as hcd_env_sh:
+            buf = hcd_env_sh.readlines()
 
         with open(self.get_bin_dir() + "/hcd-env.sh", "w") as out_file:
             for line in buf:
