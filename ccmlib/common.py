@@ -28,15 +28,14 @@ import platform
 import re
 import shutil
 import signal
+import six
 import socket
 import stat
 import subprocess
 import sys
 import time
-from distutils.version import LooseVersion  #pylint: disable=import-error, no-name-in-module
-
-import six
 import yaml
+from distutils.version import LooseVersion  #pylint: disable=import-error, no-name-in-module
 from six import print_
 
 from ccmlib import extension
@@ -692,6 +691,19 @@ def copy_directory(src_dir, dst_dir):
         filename = os.path.join(src_dir, name)
         if os.path.isfile(filename):
             shutil.copy(filename, dst_dir)
+
+
+def get_version_from_build(install_dir=None, node_path=None, cassandra=False):
+    """
+    DEPRECATED: Use Node.get_version_from_build instead.
+    """
+    if not hasattr(get_version_from_build, "_deprecation_warned"):
+        print_("[DEPRECATION WARNING] ccmlib.common.get_version_from_build is deprecated, use ccmlib.Node.get_version_from_build instead", file=sys.stderr)
+        get_version_from_build._deprecation_warned = True
+    if install_dir:
+        return extension.get_cluster_class(install_dir).getNodeClass().get_version_from_build(install_dir, node_path, cassandra)
+    from ccmlib import Node
+    return Node.get_version_from_build(install_dir, node_path, cassandra)
 
 
 def invalidate_cache():
