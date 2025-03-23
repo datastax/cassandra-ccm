@@ -553,14 +553,13 @@ def validate_install_dir(install_dir):
     if is_win():
         if ':' not in install_dir:
             raise ArgumentError(
-                '%s does not appear to be a cassandra or dse installation directory.  Please use absolute pathing (e.g. C:/cassandra.' % install_dir)
+                '%s does not appear to be an installation directory.  Please use absolute pathing (e.g. C:/cassandra.' % install_dir)
 
     bin_dir = os.path.join(install_dir, BIN_DIR)
     conf_dir = extension.get_cluster_class(install_dir).getConfDir(install_dir)
-    cnd = os.path.exists(bin_dir)
-    cnd = cnd and os.path.exists(conf_dir)
-    if not cnd:
-        raise ArgumentError('%s does not appear to be a cassandra or dse installation directory' % install_dir)
+    if not (os.path.exists(bin_dir) and os.path.exists(conf_dir)):
+        raise ArgumentError('%s does not appear to be a %s installation directory (bin_dir: %s; conf_dir: %s)'
+                            % (install_dir, extension.get_cluster_class(install_dir).__name__, bin_dir, conf_dir))
 
 
 def assert_socket_available(itf):

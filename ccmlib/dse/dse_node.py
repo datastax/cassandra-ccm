@@ -15,7 +15,8 @@
 # limitations under the License.
 
 
-# ccm node
+# DataStax Enterprise (DSE) nodes
+
 from __future__ import absolute_import, with_statement
 
 import os
@@ -23,20 +24,12 @@ import re
 import shutil
 import signal
 import subprocess
-import tarfile
-import tempfile
 
 import yaml
 from distutils.version import LooseVersion
-from six.moves import urllib
 
-from ccmlib import common, extension, node, repository
-from ccmlib.common import ArgumentError, rmdirs
+from ccmlib import common, extension, node
 from ccmlib.node import Node, handle_external_tool_process
-
-
-DSE_ARCHIVE = "https://downloads.datastax.com/enterprise/dse-%s-bin.tar.gz"
-OPSC_ARCHIVE = "https://downloads.datastax.com/enterprise/opscenter-%s.tar.gz"
 
 
 class DseNode(Node):
@@ -59,6 +52,7 @@ class DseNode(Node):
             dse_version = get_dse_version(install_dir)
             if (dse_version is not None):
                 if cassandra:
+                    from ccmlib.dse.dse_cluster import get_dse_cassandra_version
                     return get_dse_cassandra_version(install_dir)
                 else:
                     return LooseVersion(dse_version)
@@ -96,7 +90,8 @@ class DseNode(Node):
         return self.make_dse_env(self.get_install_dir(), self.get_path(), self.ip_addr)
 
     def node_setup(self, version, verbose):
-        dir, v = repository.setup_dse(version, self.cluster.dse_username, self.cluster.dse_password, verbose=verbose)
+        from ccmlib.dse.dse_cluster import setup_dse
+        dir, v = setup_dse(version, self.cluster.dse_username, self.cluster.dse_password, verbose=verbose)
         return dir
 
     def set_workloads(self, workloads):
@@ -533,7 +528,7 @@ class DseNode(Node):
                 os.makedirs(dir)
 
     def make_dse_env(self, install_dir, node_path, node_ip):
-        version = self.get_version_from_build(node_path=node_path)
+        version = DseNode.get_version_from_build(node_path=node_path)
         env = os.environ.copy()
         env['MAX_HEAP_SIZE'] = os.environ.get('CCM_MAX_HEAP_SIZE', '500M')
         env['HEAP_NEWSIZE'] = os.environ.get('CCM_HEAP_NEWSIZE', '50M')
@@ -570,65 +565,6 @@ class DseNode(Node):
             env['HADOOP_CONF_DIR'] = os.path.join(node_path, 'resources', 'hadoop', 'conf')
         return env
 
-    def download_dse_version(self, version, username, password, verbose=False):
-        url = DSE_ARCHIVE
-        if repository.CCM_CONFIG.has_option('repositories', 'dse'):
-            url = repository.CCM_CONFIG.get('repositories', 'dse')
-
-        url = url % version
-        _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
-        try:
-            if username is None:
-                common.warning("No dse username detected, specify one using --dse-username or passing in a credentials file using --dse-credentials.")
-            if password is None:
-                common.warning("No dse password detected, specify one using --dse-password or passing in a credentials file using --dse-credentials.")
-            repository.__download(url, target, username=username, password=password, show_progress=verbose)
-            common.debug("Extracting {} as version {} ...".format(target, version))
-            tar = tarfile.open(target)
-            dir = tar.next().name.split("/")[0]  # pylint: disable=all
-            tar.extractall(path=repository.__get_dir())
-            tar.close()
-            target_dir = os.path.join(repository.__get_dir(), version)
-            if os.path.exists(target_dir):
-                rmdirs(target_dir)
-            shutil.move(os.path.join(repository.__get_dir(), dir), target_dir)
-        except urllib.error.URLError as e:
-            msg = "Invalid version %s" % version if url is None else "Invalid url %s" % url
-            msg = msg + " (underlying error is: %s)" % str(e)
-            raise ArgumentError(msg)
-        except tarfile.ReadError as e:
-            raise ArgumentError("Unable to uncompress downloaded file: %s" % str(e))
-
-
-    def download_opscenter_version(self, version, username, password, target_version, verbose=False):
-        url = OPSC_ARCHIVE
-        if repository.CCM_CONFIG.has_option('repositories', 'opscenter'):
-            url = repository.CCM_CONFIG.get('repositories', 'opscenter')
-
-        url = url % version
-        _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
-        try:
-            if username is None:
-                common.warning("No dse username detected, specify one using --dse-username or passing in a credentials file using --dse-credentials.")
-            if password is None:
-                common.warning("No dse password detected, specify one using --dse-password or passing in a credentials file using --dse-credentials.")
-            repository.__download(url, target, username=username, password=password, show_progress=verbose)
-            common.info("Extracting {} as version {} ...".format(target, target_version))
-            tar = tarfile.open(target)
-            dir = tar.next().name.split("/")[0]  # pylint: disable=all
-            tar.extractall(path=repository.__get_dir())
-            tar.close()
-            target_dir = os.path.join(repository.__get_dir(), target_version)
-            if os.path.exists(target_dir):
-                rmdirs(target_dir)
-            shutil.move(os.path.join(repository.__get_dir(), dir), target_dir)
-        except urllib.error.URLError as e:
-            msg = "Invalid version {}".format(version) if url is None else "Invalid url {}".format(url)
-            msg = msg + " (underlying error is: {})".format(str(e))
-            raise ArgumentError(msg)
-        except tarfile.ReadError as e:
-            raise ArgumentError("Unable to uncompress downloaded file: {}".format(str(e)))
-
 
 def get_dse_version(install_dir):
     for root, dirs, files in os.walk(install_dir):
@@ -637,16 +573,3 @@ def get_dse_version(install_dir):
             if match:
                 return match.group(1)
     return None
-
-
-def get_dse_cassandra_version(install_dir):
-    dse_cmd = os.path.join(install_dir, 'bin', 'dse')
-    (output, stderr) = subprocess.Popen([dse_cmd, "cassandra", '-v'], stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE).communicate()
-    output = output.rstrip()
-    match = re.search('([0-9.]+)(?:-.*)?', str(output))
-    if match:
-        return LooseVersion(match.group(1))
-
-    raise ArgumentError("Unable to determine Cassandra version in: %s.\n\tstdout: '%s'\n\tstderr: '%s'"
-                        % (install_dir, output, stderr))

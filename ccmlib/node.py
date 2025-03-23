@@ -201,7 +201,6 @@ class Node(object):
                 self.get_base_cassandra_version()
             except (common.CCMError, ValueError):
                 self._cassandra_version = self.cluster.cassandra_version()
-
         if save:
             self.import_config_files()
             self.import_bin_files()

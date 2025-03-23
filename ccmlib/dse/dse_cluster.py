@@ -20,15 +20,21 @@
 from __future__ import absolute_import
 
 import os
+import re
 import shutil
 import signal
 import subprocess
+import tarfile
+import tempfile
 from argparse import ArgumentError
+from distutils.version import LooseVersion
+from six.moves import urllib
 
 from ccmlib import common, repository
 from ccmlib.cluster import Cluster
+from ccmlib.common import rmdirs
 from ccmlib.common import ArgumentError
-from ccmlib.dse.dse_node import DseNode, get_dse_cassandra_version
+from ccmlib.dse.dse_node import DseNode
 
 try:
     import ConfigParser
@@ -38,6 +44,9 @@ except ImportError:
 
 DSE_CASSANDRA_CONF_DIR = "resources/cassandra/conf"
 OPSCENTER_CONF_DIR = "conf"
+DSE_ARCHIVE = "https://downloads.datastax.com/enterprise/dse-%s-bin.tar.gz"
+OPSC_ARCHIVE = "https://downloads.datastax.com/enterprise/opscenter-%s.tar.gz"
+
 
 
 def isDse(install_dir, options=None):
@@ -86,27 +95,21 @@ class DseCluster(Cluster):
 
 
     def __init__(self, path, name, partitioner=None, install_dir=None, create_directory=True, version=None, verbose=False, derived_cassandra_version=None, options=None):
-        self.dse_username = None
-        self.dse_password = None
         self.load_credentials_from_file(options.dse_credentials_file if options else None)
-        if options and options.dse_username is not None:
-            self.dse_username = options.dse_username
-        if options and options.dse_password is not None:
-            self.dse_password = options.dse_password
-        if options and options.opscenter is not None:
-            self.opscenter = options.opscenter
+        self.dse_username = options.dse_username if options else None
+        self.dse_password = options.dse_password if options else None
+        self.opscenter = options.opscenter if options else None
         self._cassandra_version = None
-        if derived_cassandra_version:
-            self._cassandra_version = derived_cassandra_version
+        self._cassandra_version = derived_cassandra_version
 
         super(DseCluster, self).__init__(path, name, partitioner, install_dir, create_directory, version, verbose, options=options)
 
     def load_from_repository(self, version, verbose):
         if self.opscenter is not None:
-            odir = repository.setup_opscenter(self.opscenter, self.dse_username, self.dse_password, verbose)
+            odir = setup_opscenter(self.opscenter, self.dse_username, self.dse_password, verbose)
             target_dir = os.path.join(self.get_path(), 'opscenter')
             shutil.copytree(odir, target_dir)
-        return repository.setup_dse(version, self.dse_username, self.dse_password, verbose)
+        return setup_dse(version, self.dse_username, self.dse_password, verbose)
 
     def load_credentials_from_file(self, dse_credentials_file):
         # Use .dse.ini if it exists in the default .ccm directory.
@@ -154,7 +157,6 @@ class DseCluster(Cluster):
         not_running = super(DseCluster, self).stop(wait=wait, signal_event=signal.SIGTERM, **kwargs)
         self.stop_opscenter()
         return not_running
-
 
     def remove(self, node=None):
         # We _must_ gracefully stop if aoss is enabled, otherwise we will leak the spark workers
@@ -217,3 +219,95 @@ class DseCluster(Cluster):
                     f.write('seed_hosts = %s\n' % node_ip)
                     f.write('api_port = %s\n' % node_port)
                     f.close()
+
+
+def setup_dse(version, username, password, verbose=False):
+    (cdir, version, fallback) = repository.__setup(version, verbose)
+    if cdir:
+        return (cdir, version)
+    cdir = repository.version_directory(version)
+    if cdir is None:
+        download_dse_version(version, username, password, verbose=verbose)
+        cdir = repository.version_directory(version)
+    return (cdir, version)
+
+
+def setup_opscenter(opscenter, username, password, verbose=False):
+    ops_version = 'opsc' + opscenter
+    odir = repository.version_directory(ops_version)
+    if odir is None:
+        download_opscenter_version(opscenter, username, password, ops_version, verbose=verbose)
+        odir = repository.version_directory(ops_version)
+    return odir
+
+
+def get_dse_cassandra_version(install_dir):
+    dse_cmd = os.path.join(install_dir, 'bin', 'dse')
+    (output, stderr) = subprocess.Popen([dse_cmd, "cassandra", '-v'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    # just take the last line to avoid any possible log lines
+    output = output.decode('utf-8').rstrip().split('\n')[-1]
+    match = re.search('([0-9.]+)(?:-.*)?', str(output))
+    if match:
+        return LooseVersion(match.group(1))
+    raise ArgumentError("Unable to determine Cassandra version in: %s.\n\tstdout: '%s'\n\tstderr: '%s'"
+                        % (install_dir, output, stderr))
+
+
+def download_dse_version(version, username, password, verbose=False):
+    url = DSE_ARCHIVE
+    if repository.CCM_CONFIG.has_option('repositories', 'dse'):
+        url = repository.CCM_CONFIG.get('repositories', 'dse')
+
+    url = url % version
+    _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
+    try:
+        if username is None:
+            common.warning("No dse username detected, specify one using --dse-username or passing in a credentials file using --dse-credentials.")
+        if password is None:
+            common.warning("No dse password detected, specify one using --dse-password or passing in a credentials file using --dse-credentials.")
+        repository.__download(url, target, username=username, password=password, show_progress=verbose)
+        common.debug("Extracting {} as version {} ...".format(target, version))
+        tar = tarfile.open(target)
+        dir = tar.next().name.split("/")[0]  # pylint: disable=all
+        tar.extractall(path=repository.__get_dir())
+        tar.close()
+        target_dir = os.path.join(repository.__get_dir(), version)
+        if os.path.exists(target_dir):
+            rmdirs(target_dir)
+        shutil.move(os.path.join(repository.__get_dir(), dir), target_dir)
+    except urllib.error.URLError as e:
+        msg = "Invalid version %s" % version if url is None else "Invalid url %s" % url
+        msg = msg + " (underlying error is: %s)" % str(e)
+        raise ArgumentError(msg)
+    except tarfile.ReadError as e:
+        raise ArgumentError("Unable to uncompress downloaded file: %s" % str(e))
+
+
+def download_opscenter_version(version, username, password, target_version, verbose=False):
+    url = OPSC_ARCHIVE
+    if repository.CCM_CONFIG.has_option('repositories', 'opscenter'):
+        url = repository.CCM_CONFIG.get('repositories', 'opscenter')
+
+    url = url % version
+    _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
+    try:
+        if username is None:
+            common.warning("No dse username detected, specify one using --dse-username or passing in a credentials file using --dse-credentials.")
+        if password is None:
+            common.warning("No dse password detected, specify one using --dse-password or passing in a credentials file using --dse-credentials.")
+        repository.__download(url, target, username=username, password=password, show_progress=verbose)
+        common.info("Extracting {} as version {} ...".format(target, target_version))
+        tar = tarfile.open(target)
+        dir = tar.next().name.split("/")[0]  # pylint: disable=all
+        tar.extractall(path=repository.__get_dir())
+        tar.close()
+        target_dir = os.path.join(repository.__get_dir(), target_version)
+        if os.path.exists(target_dir):
+            rmdirs(target_dir)
+        shutil.move(os.path.join(repository.__get_dir(), dir), target_dir)
+    except urllib.error.URLError as e:
+        msg = "Invalid version {}".format(version) if url is None else "Invalid url {}".format(url)
+        msg = msg + " (underlying error is: {})".format(str(e))
+        raise ArgumentError(msg)
+    except tarfile.ReadError as e:
+        raise ArgumentError("Unable to uncompress downloaded file: {}".format(str(e)))
