@@ -19,12 +19,18 @@
 from __future__ import absolute_import
 
 import os
+import re
+import subprocess
+import shutil
+import tarfile
+import tempfile
 from argparse import ArgumentError
+from distutils.version import LooseVersion
 
-from ccmlib import common
+from ccmlib import common, repository
 from ccmlib.cluster import Cluster
-from ccmlib.common import ArgumentError
-from ccmlib.hcd.hcd_node import HcdNode, get_hcd_cassandra_version, setup_hcd
+from ccmlib.common import ArgumentError, rmdirs
+from ccmlib.hcd.hcd_node import HcdNode
 
 try:
     import ConfigParser
@@ -33,6 +39,7 @@ except ImportError:
 
 
 HCD_CASSANDRA_CONF_DIR = "resources/cassandra/conf"
+HCD_ARCHIVE = "https://downloads.datastax.com/hcd/hcd-%s-bin.tar.gz"
 
 
 def isHcd(install_dir, options=None):
@@ -53,9 +60,6 @@ def isHcdClusterType(install_dir, options=None):
     if isHcd(install_dir, options):
         return HcdCluster
     return None
-
-
-
 
 
 class HcdCluster(Cluster):
@@ -91,3 +95,61 @@ class HcdCluster(Cluster):
         if self._cassandra_version is None:
             self._cassandra_version = get_hcd_cassandra_version(self.get_install_dir())
         return self._cassandra_version
+
+
+def download_hcd_version(version, verbose=False):
+    url = HCD_ARCHIVE
+    if repository.CCM_CONFIG.has_option('repositories', 'hcd'):
+        url = repository.CCM_CONFIG.get('repositories', 'hcd')
+
+    url = url % version
+    _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
+    try:
+        repository.__download(url, target, show_progress=verbose)
+        common.debug("Extracting {} as version {} ...".format(target, version))
+        tar = tarfile.open(target)
+        dir = tar.next().name.split("/")[0]  # pylint: disable=all
+        tar.extractall(path=repository.__get_dir())
+        tar.close()
+        target_dir = os.path.join(repository.__get_dir(), version)
+        if os.path.exists(target_dir):
+            rmdirs(target_dir)
+        shutil.move(os.path.join(repository.__get_dir(), dir), target_dir)
+    except urllib.error.URLError as e:
+        msg = "Invalid version %s" % version if url is None else "Invalid url %s" % url
+        msg = msg + " (underlying error is: %s)" % str(e)
+        raise ArgumentError(msg)
+    except tarfile.ReadError as e:
+        raise ArgumentError("Unable to uncompress downloaded file: %s" % str(e))
+
+
+def setup_hcd(version, verbose=False):
+    (cdir, version, fallback) = repository.__setup(version, verbose)
+    if cdir:
+        return (cdir, version)
+    cdir = repository.version_directory(version)
+    if cdir is None:
+        download_hcd_version(version, verbose=verbose)
+        cdir = repository.version_directory(version)
+    return (cdir, version)
+
+
+def get_hcd_version(install_dir):
+    for root, dirs, files in os.walk(install_dir):
+        for file in files:
+            match = re.search('^hcd(?:-core)?-([0-9.]+)(?:-.*)?\.jar', file)
+            if match:
+                return match.group(1)
+    return None
+
+
+def get_hcd_cassandra_version(install_dir):
+    hcd_cmd = os.path.join(install_dir, 'bin', 'hcd')
+    (output, stderr) = subprocess.Popen([hcd_cmd, "cassandra", '-v'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    # just take the last line to avoid any possible logback log lines
+    output = output.decode('utf-8').rstrip().split('\n')[-1]
+    match = re.search('([0-9.]+)(?:-.*)?', str(output))
+    if match:
+        return LooseVersion(match.group(1))
+    raise ArgumentError("Unable to determine Cassandra version in: %s.\n\tstdout: '%s'\n\tstderr: '%s'"
+                        % (install_dir, output, stderr))

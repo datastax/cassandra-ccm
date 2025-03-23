@@ -14,28 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# DataStax Hyper-Converged Database (HCD) node
+# DataStax Hyper-Converged Database (HCD) nodes
 
 from __future__ import absolute_import, with_statement
 
 import os
-import re
-import subprocess
 import shutil
-import tarfile
-import tempfile
 import yaml
 
 from distutils.version import LooseVersion
 from six.moves import urllib, xrange
 
-from ccmlib import common, node, repository
-from ccmlib.common import ArgumentError, rmdirs
+from ccmlib import common, node
 from ccmlib.node import Node
 
 
-
-HCD_ARCHIVE = "https://downloads.datastax.com/hcd/hcd-%s-bin.tar.gz"
 
 class HcdNode(Node):
 
@@ -54,9 +47,11 @@ class HcdNode(Node):
                 with open(version_file) as f:
                     return LooseVersion(f.read().strip())
             # For HCD look for a hcd*.jar and extract the version number
+            from ccmlib.hcd.hcd_cluster import get_hcd_version
             hcd_version = get_hcd_version(install_dir)
             if (hcd_version is not None):
                 if cassandra:
+                    from ccmlib.hcd.hcd_cluster import get_hcd_cassandra_version
                     return get_hcd_cassandra_version(install_dir)
                 else:
                     return LooseVersion(hcd_version)
@@ -69,7 +64,7 @@ class HcdNode(Node):
         super(HcdNode, self).__init__(name, cluster, auto_bootstrap, thrift_interface, storage_interface, jmx_port, remote_debug_port, initial_token, save, binary_interface, byteman_port, environment_variables=environment_variables, derived_cassandra_version=derived_cassandra_version, **kwargs)
 
     def get_install_cassandra_root(self):
-        return os.path.join(self.get_install_dir(), 'resources', 'cassandra')
+        return os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd', 'resources', 'cassandra')
 
     def get_node_cassandra_root(self):
         return os.path.join(self.get_path(), 'resources', 'cassandra')
@@ -81,10 +76,10 @@ class HcdNode(Node):
         return os.path.join(self.get_path(), 'resources', 'cassandra', 'conf')
 
     def get_tool(self, toolname):
-        return common.join_bin(os.path.join(self.get_install_dir(), 'resources', 'cassandra'), 'bin', toolname)
+        return common.join_bin(os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd', 'resources', 'cassandra'), 'bin', toolname)
 
     def get_tool_args(self, toolname):
-        return [common.join_bin(os.path.join(self.get_install_dir(), 'resources', 'cassandra'), 'bin', toolname)]
+        return [common.join_bin(os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd', 'resources', 'cassandra'), 'bin', toolname)]
 
     def get_env(self):
         env = self.make_hcd_env(self.get_install_dir(), self.get_path())
@@ -96,11 +91,12 @@ class HcdNode(Node):
         return env
 
     def node_setup(self, version, verbose):
+        from ccmlib.hcd.hcd_cluster import setup_hcd
         dir, v = setup_hcd(version, verbose=verbose)
         return dir
 
     def get_launch_bin(self):
-        cdir = self.get_install_dir()
+        cdir = os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd')
         launch_bin = common.join_bin(cdir, 'bin', 'hcd')
         shutil.copy(launch_bin, self.get_bin_dir())
         return common.join_bin(self.get_path(), 'bin', 'hcd')
@@ -110,7 +106,7 @@ class HcdNode(Node):
 
     def copy_config_files(self):
         for product in ['hcd', 'cassandra']:
-            src_conf = os.path.join(self.get_install_dir(), 'resources', product, 'conf')
+            src_conf = os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd', 'resources', product, 'conf')
             dst_conf = os.path.join(self.get_path(), 'resources', product, 'conf')
             if not os.path.isdir(src_conf):
                 continue
@@ -123,11 +119,11 @@ class HcdNode(Node):
         cassandra_bin_dir = os.path.join(self.get_path(), 'resources', 'cassandra', 'bin')
         shutil.rmtree(cassandra_bin_dir, ignore_errors=True)
         os.makedirs(cassandra_bin_dir)
-        common.copy_directory(os.path.join(self.get_install_dir(), 'resources', 'cassandra', 'bin'), cassandra_bin_dir)
-        if os.path.exists(os.path.join(self.get_install_dir(), 'resources', 'cassandra', 'tools')):
+        common.copy_directory(os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd', 'resources', 'cassandra', 'bin'), cassandra_bin_dir)
+        if os.path.exists(os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd', 'resources', 'cassandra', 'tools')):
             cassandra_tools_dir = os.path.join(self.get_path(), 'resources', 'cassandra', 'tools')
             shutil.rmtree(cassandra_tools_dir, ignore_errors=True)
-            shutil.copytree(os.path.join(self.get_install_dir(), 'resources', 'cassandra', 'tools'), cassandra_tools_dir)
+            shutil.copytree(os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd', 'resources', 'cassandra', 'tools'), cassandra_tools_dir)
         self.export_hcd_home_in_hcd_env_sh()
 
 
@@ -150,16 +146,8 @@ class HcdNode(Node):
             for line in buf:
                 out_file.write(line)
                 if line == "# This is here so the installer can force set HCD_HOME\n":
-                    out_file.write("HCD_HOME=" + self.get_install_dir() + "\nexport HCD_HOME\n")
+                    out_file.write("HCD_HOME=" + os.path.join(self.get_install_dir(), 'distribution', 'hcd' , 'target', 'hcd') + "\nexport HCD_HOME\n")
 
-
-    def _update_yaml(self):
-        super(HcdNode, self)._update_yaml()
-        conf_file = os.path.join(self.get_path(), 'resources', 'cassandra', 'conf', 'cassandra.yaml')
-        with open(conf_file, 'r') as f:
-            data = yaml.safe_load(f)
-        with open(conf_file, 'w') as f:
-            yaml.safe_dump(data, f, default_flow_style=False)
 
     def _get_directories(self):
         dirs = []
@@ -174,64 +162,10 @@ class HcdNode(Node):
         env['MAX_HEAP_SIZE'] = os.environ.get('CCM_MAX_HEAP_SIZE', '500M')
         env['HEAP_NEWSIZE'] = os.environ.get('CCM_HEAP_NEWSIZE', '50M')
         env['MAX_DIRECT_MEMORY'] = os.environ.get('CCM_MAX_DIRECT_SIZE', '2048M')
-        env['HCD_HOME'] = os.path.join(install_dir)
+        env['HCD_HOME'] = os.path.join(install_dir, 'distribution', 'hcd' , 'target', 'hcd')
         env['HCD_CONF'] = os.path.join(node_path, 'resources', 'hcd', 'conf')
-        env['CASSANDRA_HOME'] = os.path.join(install_dir, 'resources', 'cassandra')
+        env['CASSANDRA_HOME'] = os.path.join(install_dir, 'distribution', 'hcd' , 'target', 'hcd', 'resources', 'cassandra')
         env['CASSANDRA_CONF'] = os.path.join(node_path, 'resources', 'cassandra', 'conf')
         env['HCD_LOG_ROOT'] = os.path.join(node_path, 'logs', 'hcd')
         env['CASSANDRA_LOG_DIR'] = os.path.join(node_path, 'logs')
         return env
-
-def download_hcd_version( version, verbose=False):
-    url = HCD_ARCHIVE
-    if repository.CCM_CONFIG.has_option('repositories', 'hcd'):
-        url = repository.CCM_CONFIG.get('repositories', 'hcd')
-
-    url = url % version
-    _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
-    try:
-        repository.__download(url, target, show_progress=verbose)
-        common.debug("Extracting {} as version {} ...".format(target, version))
-        tar = tarfile.open(target)
-        dir = tar.next().name.split("/")[0]  # pylint: disable=all
-        tar.extractall(path=repository.__get_dir())
-        tar.close()
-        target_dir = os.path.join(repository.__get_dir(), version)
-        if os.path.exists(target_dir):
-            rmdirs(target_dir)
-        shutil.move(os.path.join(repository.__get_dir(), dir), target_dir)
-    except urllib.error.URLError as e:
-        msg = "Invalid version %s" % version if url is None else "Invalid url %s" % url
-        msg = msg + " (underlying error is: %s)" % str(e)
-        raise ArgumentError(msg)
-    except tarfile.ReadError as e:
-        raise ArgumentError("Unable to uncompress downloaded file: %s" % str(e))
-
-def setup_hcd(version, verbose=False):
-    cdir = repository.version_directory(version)
-    if cdir is None:
-        download_hcd_version(version, verbose=verbose)
-        cdir = repository.version_directory(version)
-    return (cdir, version)
-
-
-def get_hcd_version(install_dir):
-    for root, dirs, files in os.walk(install_dir):
-        for file in files:
-            match = re.search('^hcd(?:-core)?-([0-9.]+)(?:-.*)?\.jar', file)
-            if match:
-                return match.group(1)
-    return None
-
-
-def get_hcd_cassandra_version(install_dir):
-    hcd_cmd = os.path.join(install_dir, 'bin', 'hcd')
-    (output, stderr) = subprocess.Popen([hcd_cmd, "cassandra", '-v'], stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE).communicate()
-    output = output.rstrip()
-    match = re.search('([0-9.]+)(?:-.*)?', str(output))
-    if match:
-        return LooseVersion(match.group(1))
-
-    raise ArgumentError("Unable to determine Cassandra version in: %s.\n\tstdout: '%s'\n\tstderr: '%s'"
-                        % (install_dir, output, stderr))
