@@ -47,6 +47,20 @@ jobs:
         run: |
           pytest --junitxml=junit.xml tests
 
+      - name: Smoke tests
+        run: |
+          sudo ./setup.py install
+          ./ccm create -h
+          ./ccm create test -v 5.0.3 -n1 --vnodes
+          ./ccm start ; ./ccm remove
+          ./ccm create test --version='git:cassandra-5.0.3' -n1 --vnodes
+          ./ccm start ; ./ccm remove
+          ./ccm create test -v 6.8.54 -n1 --vnodes --dse
+          ./ccm start ; ./ccm remove
+          # todo, when available
+          #./ccm create test -v 1.1.0 -n1 --vnodes --hcd
+          #./ccm start ; ./ccm remove
+
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v5
         if: always()
