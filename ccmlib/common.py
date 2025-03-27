@@ -701,7 +701,7 @@ def get_version_from_build(install_dir=None, node_path=None, cassandra=False):
         get_version_from_build._deprecation_warned = True
     if install_dir:
         return extension.get_cluster_class(install_dir).getNodeClass().get_version_from_build(install_dir, node_path, cassandra)
-    from ccmlib import Node
+    from ccmlib.node import Node
     return Node.get_version_from_build(install_dir, node_path, cassandra)
 
 

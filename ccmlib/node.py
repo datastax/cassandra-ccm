@@ -2151,7 +2151,7 @@ class Node(object):
         start = time.time()
         while not (os.path.isfile(pidfile) and os.stat(pidfile).st_size > 0):
             if (time.time() - start > 30.0):
-                common.error("Timed out waiting for pidfile to be filled (current time is {})".format(datetime.now()))
+                common.error("Timed out waiting for pidfile to be filled (current time is {}, file exists {})".format(datetime.now(), os.path.isfile(pidfile)))
                 break
             else:
                 time.sleep(0.1)
