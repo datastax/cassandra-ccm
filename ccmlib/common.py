@@ -888,7 +888,12 @@ def _update_java_version(current_java_version, current_java_home_version,
                            .format(current_java_version, current_java_home_version))
 
     if cassandra_version is None and install_dir:
-        cassandra_version = extension.get_cluster_class(install_dir).getNodeClass().get_version_from_build(install_dir, cassandra=True)
+        try:
+            cassandra_version = extension.get_cluster_class(install_dir).getNodeClass().get_version_from_build(install_dir, cassandra=True)
+        except CCMError as e:
+            # when for_build cassandra_version=None is ok to pass to get_supported_jdk_versions(..)
+            if not for_build:
+                raise e
 
     # Java versions supported by the Cassandra distribution
     supported_versions = get_supported_jdk_versions(cassandra_version, install_dir, for_build, os_env if os_env else os.environ)

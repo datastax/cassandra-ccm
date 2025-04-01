@@ -128,11 +128,12 @@ class Node(object):
                     return LooseVersion(f.read().strip())
             # Source cassandra installs we can read from build.xml
             build = os.path.join(install_dir, 'build.xml')
-            with open(build) as f:
-                for line in f:
-                    match = re.search('name="base\.version" value="([0-9.]+)[^"]*"', line)
-                    if match:
-                        return LooseVersion(match.group(1))
+            if os.path.exists(build):
+                with open(build) as f:
+                    for line in f:
+                        match = re.search('name="base\.version" value="([0-9.]+)[^"]*"', line)
+                        if match:
+                            return LooseVersion(match.group(1))
         raise common.CCMError("Cannot find version")
 
 

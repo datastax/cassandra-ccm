@@ -448,6 +448,7 @@ class Cluster(object):
             node_tokens = stdout_output.replace('[','').replace(' ','').replace(']','').replace('\n','')
             tokens.append(node_tokens)
 
+        assert 0 < len(tokens), "No tokens generated from invocation: {}".format(str(cmd_list))
         common.debug("pregenerated tokens from cmd_list: {} are {}".format(str(cmd_list),tokens))
 
     def remove(self, node=None, gently=False):
