@@ -284,7 +284,7 @@ class Cluster(object):
         node._save()
         return self
 
-    def populate(self, nodes, debug=False, tokens=None, use_vnodes=None, ipprefix='127.0.0.', ipformat=None, install_byteman=False, use_single_interface=False):
+    def populate(self, nodes, debug=False, tokens=None, use_vnodes=None, ipprefix='127.0.0.', ipformat=None, install_byteman=False, use_single_interface=False, token_pregeneration_disabled=False):
         """Populate a cluster with nodes
         @use_single_interface : Populate the cluster with nodes that all share a single network interface.
         """
@@ -325,7 +325,7 @@ class Cluster(object):
             if self.use_vnodes:
                 # from 4.0 tokens can be pre-generated via the `allocate_tokens_for_local_replication_factor: 3` strategy
                 #  this saves time, as allocating tokens during first start is slow and non-concurrent
-                if self.can_generate_tokens() and not 'CASSANDRA_TOKEN_PREGENERATION_DISABLED' in self._environment_variables:
+                if self.can_generate_tokens() and not token_pregeneration_disabled and not 'CASSANDRA_TOKEN_PREGENERATION_DISABLED' in self._environment_variables:
                     if len(dcs) <= 1:
                         for x in xrange(0, node_count):
                             dcs.append('dc1')
