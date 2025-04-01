@@ -57,7 +57,13 @@ class DseNode(Node):
                 else:
                     return LooseVersion(dse_version)
             # Source cassandra installs we can read from build.xml
-            return Node.get_version_from_build(install_dir, cassandra)
+            build = os.path.join(install_dir, 'build.xml')
+            if os.path.exists(build):
+                with open(build) as f:
+                    for line in f:
+                        match = re.search('name="base\.version" value="([0-9.]+)[^"]*"', line)
+                        if match:
+                            return LooseVersion(match.group(1))
         raise common.CCMError("Cannot find version")
 
 

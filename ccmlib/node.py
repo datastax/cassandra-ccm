@@ -121,6 +121,10 @@ class Node(object):
         if install_dir is None and node_path is not None:
             install_dir = get_install_dir_from_cluster_conf(node_path)
         if install_dir is not None:
+            # hack, nodes can be of a different type to the cluster
+            node_class = extension.get_cluster_class(install_dir).getNodeClass()
+            if node_class is not Node:
+                return node_class.get_version_from_build(install_dir, node_path, cassandra)
             # Binary cassandra installs will have a 0.version.txt file
             version_file = os.path.join(install_dir, '0.version.txt')
             if os.path.exists(version_file):
