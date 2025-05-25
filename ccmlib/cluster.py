@@ -134,7 +134,7 @@ class Cluster(object):
             common.validate_install_dir(install_dir)
             self.__version = self.__get_version_from_build()
         else:
-            dir, v = repository.setup(version, verbose)
+            dir, v = self.load_from_repository(version, verbose)
             self.__install_dir = dir
             self.__version = v if v is not None else self.__get_version_from_build()
             if not isinstance(self.__version, LooseVersion):
