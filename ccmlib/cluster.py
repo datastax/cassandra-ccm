@@ -845,9 +845,11 @@ class Cluster(object):
             'keystore': os.path.join(self.get_path(), 'internode-keystore.jks'),
             'keystore_password': 'cassandra',
             'truststore': os.path.join(self.get_path(), 'internode-truststore.jks'),
-            'truststore_password': 'cassandra',
-            'enable_legacy_ssl_storage_port': enable_legacy_ssl_storage_port
+            'truststore_password': 'cassandra'
         }
+
+        if enable_legacy_ssl_storage_port:
+            node_ssl_options['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
 
         if self.cassandra_version() >= '4.0' and self.getNodeClass() is Node:
             node_ssl_options['enabled'] = True
