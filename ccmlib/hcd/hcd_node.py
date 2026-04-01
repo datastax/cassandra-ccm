@@ -22,7 +22,7 @@ import os
 import shutil
 import yaml
 
-from distutils.version import LooseVersion
+from ccmlib.version import LooseVersion
 from six.moves import urllib, xrange
 
 from ccmlib import common, node

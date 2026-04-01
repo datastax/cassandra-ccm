@@ -27,7 +27,7 @@ import subprocess
 import tarfile
 import tempfile
 from argparse import ArgumentError
-from distutils.version import LooseVersion
+from ccmlib.version import LooseVersion
 from six.moves import urllib
 
 from ccmlib import common, repository
@@ -247,7 +247,7 @@ def get_dse_cassandra_version(install_dir):
     (output, stderr) = subprocess.Popen([dse_cmd, "cassandra", '-v'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
     # just take the last line to avoid any possible log lines
     output = output.decode('utf-8').rstrip().split('\n')[-1]
-    match = re.search('^([0-9.]+)(?:-.*)?', str(output))
+    match = re.search(r'^([0-9]+(?:\.[0-9]+){0,2})(?:-.*)?', str(output))
     if match:
         return LooseVersion(match.group(1))
     raise ArgumentError("Unable to determine Cassandra version using `bin/dse cassandra -v` from output: %s.\n\tstdout: '%s'\n\tstderr: '%s'"

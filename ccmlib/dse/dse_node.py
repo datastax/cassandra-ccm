@@ -26,7 +26,7 @@ import signal
 import subprocess
 
 import yaml
-from distutils.version import LooseVersion
+from ccmlib.version import LooseVersion
 
 from ccmlib import common, extension, node
 from ccmlib.node import Node, handle_external_tool_process
