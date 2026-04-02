@@ -93,6 +93,9 @@ class DseNode(Node):
         return dir
 
     def address_for_version(self, version):
+        """
+        Returns the address in the correct version format. Either IP or IP:PORT
+        """
         if version >= LooseVersion('4.0'):
             return self.address_and_port()
         else:
