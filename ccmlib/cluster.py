@@ -848,8 +848,8 @@ class Cluster(object):
             'truststore_password': 'cassandra'
         }
 
-        # Guard against C* 3.x incompatible settings
-        if self.cassandra_version() >= '4.0':
+        # Guard against incompatible settings for <DSE_6.9
+        if self.cassandra_version() > '4.0':
             if enable_legacy_ssl_storage_port:
                 node_ssl_options['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
 
