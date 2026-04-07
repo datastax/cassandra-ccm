@@ -848,11 +848,14 @@ class Cluster(object):
             'truststore_password': 'cassandra'
         }
 
-        # Guard against adding incompatible yaml settings
-        if self.cassandra_version() >= '4.0' and self.getNodeClass() is Node:
-            node_ssl_options['enabled'] = True
+        # Guard against C* 3.x incompatible settings
+        if self.cassandra_version() >= '4.0':
             if enable_legacy_ssl_storage_port:
                 node_ssl_options['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
+
+        # Guard against yaml settings incompatible with DSE (Node is a C* node vs DseNode)
+        if self.cassandra_version() >= '4.0' and self.getNodeClass() is Node:
+            node_ssl_options['enabled'] = True
 
         self._config_options['server_encryption_options'] = node_ssl_options
         self._update_config()
