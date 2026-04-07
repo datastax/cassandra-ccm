@@ -848,9 +848,6 @@ class Cluster(object):
             'truststore_password': 'cassandra'
         }
 
-        if enable_legacy_ssl_storage_port:
-            node_ssl_options['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
-
         # Guard against adding incompatible yaml settings
         if self.cassandra_version() >= '4.0' and self.getNodeClass() is Node:
             node_ssl_options['enabled'] = True
