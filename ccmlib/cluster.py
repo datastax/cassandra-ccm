@@ -851,9 +851,11 @@ class Cluster(object):
         if enable_legacy_ssl_storage_port:
             node_ssl_options['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
 
-        # Guard against adding 'enabled' to a DSE node which can't parse it
+        # Guard against adding incompatible yaml settings
         if self.cassandra_version() >= '4.0' and self.getNodeClass() is Node:
             node_ssl_options['enabled'] = True
+            if enable_legacy_ssl_storage_port:
+                node_ssl_options['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
 
         self._config_options['server_encryption_options'] = node_ssl_options
         self._update_config()
