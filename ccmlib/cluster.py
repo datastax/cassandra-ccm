@@ -28,6 +28,8 @@ import subprocess
 import threading
 import time
 from collections import OrderedDict, defaultdict, namedtuple
+
+from ccmlib.dse.dse_node import DseNode
 from ccmlib.version import LooseVersion
 
 import yaml
@@ -849,7 +851,7 @@ class Cluster(object):
         }
 
         # Guard against incompatible settings for <DSE_6.9
-        if self.cassandra_version() > '4.0':
+        if self.getNodeClass() is DseNode and self.version() >= '6.9':
             if enable_legacy_ssl_storage_port:
                 node_ssl_options['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
 
