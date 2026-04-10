@@ -241,6 +241,22 @@ def setup_opscenter(opscenter, username, password, verbose=False):
     return odir
 
 
+def get_dse_supported_jdk_versions(install_dir, cassandra_version=None):
+    """
+    Returns list of supported JDK versions for the version, or None.
+    """
+    # Use the provided cassandra_version if available (it will be the DSE version for DSE installs)
+    if cassandra_version is not None:
+        if cassandra_version >= LooseVersion('6.9'):
+            # DSE 6.9 supports only Java 11
+            return [11]
+        else:
+            # it's DSE 6.8 or earlier, only Java 8 is supported
+            return [8]
+
+    return None
+
+
 def get_dse_cassandra_version(install_dir):
     # for this to work, the current JAVA_HOME must already be appropriate
     dse_cmd = os.path.join(install_dir, 'bin', 'dse')

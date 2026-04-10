@@ -48,6 +48,11 @@ class DseNode(Node):
             if os.path.exists(version_file):
                 with open(version_file) as f:
                     return LooseVersion(f.read().strip())
+            # or a VERSION.txt file
+            version_file = os.path.join(install_dir, 'VERSION.txt')
+            if os.path.exists(version_file):
+                with open(version_file, 'r') as f:
+                    return LooseVersion(f.read().strip())
             # For DSE look for a dse*.jar and extract the version number
             dse_version = get_dse_version(install_dir)
             if (dse_version is not None):

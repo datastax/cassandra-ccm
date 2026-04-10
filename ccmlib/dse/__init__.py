@@ -18,11 +18,12 @@
 from ccmlib import extension
 from ccmlib import common
 from ccmlib.cmds.cluster_cmds import ClusterAddCmd, ClusterCreateCmd
-from ccmlib.dse.dse_cluster import isDseClusterType
+from ccmlib.dse.dse_cluster import isDseClusterType, get_dse_supported_jdk_versions
 
 
 # static initialisation:  register the extension cluster type, add dse specific options to ClusterCreateCmd and ClusterAddCmd
 extension.CLUSTER_TYPES.append(isDseClusterType)
+extension.JDK_VERSIONS_DETECTION_HOOKS.append(get_dse_supported_jdk_versions)
 
 ClusterCreateCmd.options_list.extend([
     (['-o', "--opsc"], {'type': "string", 'dest': "opscenter", 'help': "Download and use provided OpsCenter version to install with DSE. Will have no effect on cassandra installs)", 'default': None}),

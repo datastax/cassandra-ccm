@@ -25,6 +25,7 @@ LOAD_FROM_CLUSTER_CONFIG_HOOKS = []
 APPEND_TO_SERVER_ENV_HOOKS = []
 APPEND_TO_CLIENT_ENV_HOOKS = []
 APPEND_TO_CQLSH_ARGS_HOOKS = []
+JDK_VERSIONS_DETECTION_HOOKS = []
 
 def get_cluster_class(install_dir, options=None):
     for is_cluster_type in CLUSTER_TYPES:
@@ -77,3 +78,11 @@ def append_to_client_env(node, env):
 def append_to_cqlsh_args(node, env, args):
     for hook in APPEND_TO_CQLSH_ARGS_HOOKS:
         hook(node, env, args)
+
+
+def supported_jdk_versions(install_dir, cassandra_version=None):
+    for hook in JDK_VERSIONS_DETECTION_HOOKS:
+        versions = hook(install_dir, cassandra_version)
+        if versions is not None:
+            return versions
+    return None
