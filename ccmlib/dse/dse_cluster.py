@@ -36,6 +36,16 @@ from ccmlib.common import rmdirs
 from ccmlib.common import ArgumentError
 from ccmlib.dse.dse_node import DseNode
 
+# ============================================================================
+# CNDB-17227 DEBUG: Module loaded from branch CNDB-17227-fix-dse-credentials-overwrite
+# ============================================================================
+import sys as _debug_sys
+print("=" * 80, file=_debug_sys.stderr)
+print("CNDB-17227: CCM DSE MODULE LOADED FROM FIXED BRANCH!", file=_debug_sys.stderr)
+print("Branch: CNDB-17227-fix-dse-credentials-overwrite", file=_debug_sys.stderr)
+print("=" * 80, file=_debug_sys.stderr)
+
+
 try:
     import ConfigParser
 except ImportError:
@@ -101,11 +111,18 @@ class DseCluster(Cluster):
 
 
     def __init__(self, path, name, partitioner=None, install_dir=None, create_directory=True, version=None, verbose=False, derived_cassandra_version=None, options=None):
+        import sys
+        print("\n" + "="*80, file=sys.stderr)
+        print("CNDB-17227 DEBUG: DseCluster.__init__ CALLED", file=sys.stderr)
+        print("="*80 + "\n", file=sys.stderr)
         self.load_credentials_from_file(options.dse_credentials_file if options else None)
+        print(f"DEBUG: After load_credentials_from_file: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}", file=sys.stderr)
+        print("DEBUG: DseCluster.__init__ called", file=sys.stderr)
         if options and options.dse_username:
             self.dse_username = options.dse_username
         if options and options.dse_password:
             self.dse_password = options.dse_password
+        print(f"DEBUG: After options override: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}", file=sys.stderr)
         self.opscenter = options.opscenter if options else None
         self._cassandra_version = None
         self._cassandra_version = derived_cassandra_version
@@ -120,10 +137,14 @@ class DseCluster(Cluster):
         return setup_dse(version, self.dse_username, self.dse_password, verbose)
 
     def load_credentials_from_file(self, dse_credentials_file):
+        import sys
+        print(f"DEBUG: load_credentials_from_file called with: {dse_credentials_file}", file=sys.stderr)
         # Use .dse.ini if it exists in the default .ccm directory.
         if dse_credentials_file is None:
             creds_file = os.path.join(common.get_default_path(), '.dse.ini')
+            print(f"DEBUG: Checking for .dse.ini at: {creds_file}", file=sys.stderr)
             if os.path.isfile(creds_file):
+                print(f"DEBUG: .dse.ini file exists: {os.path.isfile(creds_file)}", file=sys.stderr)
                 dse_credentials_file = creds_file
 
         if dse_credentials_file is not None:
@@ -132,8 +153,10 @@ class DseCluster(Cluster):
             if parser.has_section('dse_credentials'):
                 if parser.has_option('dse_credentials', 'dse_username'):
                     self.dse_username = parser.get('dse_credentials', 'dse_username')
+                    print(f"DEBUG: Set dse_username to: {self.dse_username}", file=sys.stderr)
                 if parser.has_option('dse_credentials', 'dse_password'):
                     self.dse_password = parser.get('dse_credentials', 'dse_password')
+                    print(f"DEBUG: Set dse_password to: {self.dse_password[:5]}...", file=sys.stderr)
             else:
                 common.warning("{} does not contain a 'dse_credentials' section.".format(dse_credentials_file))
 
@@ -230,6 +253,11 @@ class DseCluster(Cluster):
 
 
 def setup_dse(version, username, password, verbose=False):
+    import sys
+    print("\n" + "="*80, file=sys.stderr)
+    pwd_display = "***" if password else "None"
+    print(f"CNDB-17227 DEBUG: setup_dse() called with username={username}, password={pwd_display}", file=sys.stderr)
+    print("="*80 + "\n", file=sys.stderr)
     (cdir, version, fallback) = repository.__setup(version, verbose)
     if cdir:
         return (cdir, version)
