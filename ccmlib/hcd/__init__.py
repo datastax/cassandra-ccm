@@ -16,6 +16,7 @@
 
 
 from ccmlib import extension
+from ccmlib import common
 from ccmlib.cmds.cluster_cmds import ClusterCreateCmd
 from ccmlib.hcd.hcd_cluster import isHcdClusterType
 
@@ -25,4 +26,7 @@ from ccmlib.hcd.hcd_cluster import isHcdClusterType
 extension.CLUSTER_TYPES.append(isHcdClusterType)
 
 ClusterCreateCmd.options_list.extend([
-    (["--hcd"], {'action': "store_true", 'dest': "hcd", 'help': "Use with -v or --install-dir to indicate that the version being loaded is HCD"})])
+    (["--hcd"], {'action': "store_true", 'dest': "hcd", 'help': "Use with -v or --install-dir to indicate that the version being loaded is HCD"}),
+    (["--hcd-username"], {'type': "string", 'dest': "hcd_username", 'help': "The username to use to download HCD with", 'default': None}),
+    (["--hcd-password"], {'type': "string", 'dest': "hcd_password", 'help': "The password to use to download HCD with", 'default': None}),
+    (["--hcd-credentials"], {'type': "string", 'dest': "hcd_credentials_file", 'help': "An ini-style config file containing the hcd_username and hcd_password under a hcd_credentials section. [default to {}/.hcd.ini if it exists]".format(common.get_default_path_display_name()), 'default': None})])

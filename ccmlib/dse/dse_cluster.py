@@ -96,8 +96,10 @@ class DseCluster(Cluster):
 
     def __init__(self, path, name, partitioner=None, install_dir=None, create_directory=True, version=None, verbose=False, derived_cassandra_version=None, options=None):
         self.load_credentials_from_file(options.dse_credentials_file if options else None)
-        self.dse_username = options.dse_username if options else None
-        self.dse_password = options.dse_password if options else None
+        if options and options.dse_username:
+            self.dse_username = options.dse_username
+        if options and options.dse_password:
+            self.dse_password = options.dse_password
         self.opscenter = options.opscenter if options else None
         self._cassandra_version = None
         self._cassandra_version = derived_cassandra_version
