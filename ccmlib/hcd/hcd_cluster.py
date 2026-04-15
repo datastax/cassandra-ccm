@@ -39,7 +39,13 @@ except ImportError:
 
 
 HCD_CASSANDRA_CONF_DIR = "resources/cassandra/conf"
-HCD_ARCHIVE = "https://downloads.datastax.com/hcd/hcd-%s-bin.tar.gz"
+
+# HCD binaries are now gated and require authentication to download.
+# Download DSE and OpsCenter from: https://downloads.datastax.com/#hcd
+# Place downloaded files in ~/Downloads/
+# Alternatively, configure custom URLs in ~/.ccm/config under [repositories] section.
+# Credentials for custom URLs can be configured in ~/.ccm/.hcd.ini
+HCD_ARCHIVE = "file://~/Downloads/hcd-%s-bin.tar.gz"
 
 
 def isHcd(install_dir, options=None):
@@ -127,6 +133,8 @@ def download_hcd_version(version, username, password, verbose=False):
         url = repository.CCM_CONFIG.get('repositories', 'hcd')
 
     url = url % version
+    if url.startswith('file://~'):
+        url = 'file://' + os.path.expanduser(url[7:])
     _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
     try:
         if username is None:

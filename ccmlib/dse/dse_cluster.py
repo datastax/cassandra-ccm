@@ -44,8 +44,14 @@ except ImportError:
 
 DSE_CASSANDRA_CONF_DIR = "resources/cassandra/conf"
 OPSCENTER_CONF_DIR = "conf"
-DSE_ARCHIVE = "https://downloads.datastax.com/enterprise/dse-%s-bin.tar.gz"
-OPSC_ARCHIVE = "https://downloads.datastax.com/enterprise/opscenter-%s.tar.gz"
+
+# DataStax Enterprise binaries are now gated and require authentication to download.
+# Download DSE and OpsCenter from: https://downloads.datastax.com/#enterprise
+# Place downloaded files in ~/Downloads/
+# Alternatively, configure custom URLs in ~/.ccm/config under [repositories] section.
+# Credentials for custom URLs can be configured in ~/.ccm/.dse.ini
+DSE_ARCHIVE = "file://~/Downloads/dse-%s-bin.tar.gz"
+OPSC_ARCHIVE = "file://~/Downloads/opscenter-%s.tar.gz"
 
 
 
@@ -262,6 +268,8 @@ def download_dse_version(version, username, password, verbose=False):
         url = repository.CCM_CONFIG.get('repositories', 'dse')
 
     url = url % version
+    if url.startswith('file://~'):
+        url = 'file://' + os.path.expanduser(url[7:])
     _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
     try:
         if username is None:
@@ -292,6 +300,8 @@ def download_opscenter_version(version, username, password, target_version, verb
         url = repository.CCM_CONFIG.get('repositories', 'opscenter')
 
     url = url % version
+    if url.startswith('file://~'):
+        url = 'file://' + os.path.expanduser(url[7:])
     _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
     try:
         if username is None:
