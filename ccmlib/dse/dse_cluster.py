@@ -118,6 +118,12 @@ class DseCluster(Cluster):
         # during upgrade tests (which doesn't call __init__)
         if not hasattr(self, 'dse_username') or self.dse_username is None:
             self.load_credentials_from_file(None)
+            if not self.dse_username or not self.dse_password:
+                raise ValueError(
+                    f"DSE credentials not found. Ensure ~/.ccm/.dse.ini exists with valid credentials. "
+                    f"Current state: dse_username={'SET' if self.dse_username else 'NOT SET'}, "
+                    f"dse_password={'SET' if self.dse_password else 'NOT SET'}"
+                )
 
         if self.opscenter is not None:
             odir = setup_opscenter(self.opscenter, self.dse_username, self.dse_password, verbose)
