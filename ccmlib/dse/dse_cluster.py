@@ -255,6 +255,9 @@ def setup_dse(version, username, password, verbose=False):
     common.warning("CNDB-17227 DEBUG: ==============================================================")
     pwd_display = "***" if password else "None"
     common.warning(f"CNDB-17227 DEBUG: setup_dse() called with username={username}, password={pwd_display}")
+    # Fail fast if credentials are missing
+    if username is None or password is None:
+        raise ValueError(f"CNDB-17227 ERROR: DSE credentials missing! username={username!r}, password={'SET' if password else 'None'}")
     common.warning("CNDB-17227 DEBUG: ==============================================================")
     (cdir, version, fallback) = repository.__setup(version, verbose)
     if cdir:
