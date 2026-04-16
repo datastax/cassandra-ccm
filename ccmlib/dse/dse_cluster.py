@@ -111,9 +111,9 @@ class DseCluster(Cluster):
 
 
     def __init__(self, path, name, partitioner=None, install_dir=None, create_directory=True, version=None, verbose=False, derived_cassandra_version=None, options=None):
-        common.warning("CNDB-17227 DEBUG: =============================================================="
+        common.warning("CNDB-17227 DEBUG: ==============================================================")
         common.warning("CNDB-17227 DEBUG: DseCluster.__init__ CALLED")
-        common.warning("CNDB-17227 DEBUG: =============================================================="
+        common.warning("CNDB-17227 DEBUG: ==============================================================")
         self.load_credentials_from_file(options.dse_credentials_file if options else None)
         common.warning(f"CNDB-17227 DEBUG: After load_credentials_from_file: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}")
         common.warning("CNDB-17227 DEBUG: DseCluster.__init__ called")
