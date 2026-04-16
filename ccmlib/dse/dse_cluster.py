@@ -111,18 +111,17 @@ class DseCluster(Cluster):
 
 
     def __init__(self, path, name, partitioner=None, install_dir=None, create_directory=True, version=None, verbose=False, derived_cassandra_version=None, options=None):
-        import sys
-        print("\n" + "="*80, file=sys.stderr)
-        print("CNDB-17227 DEBUG: DseCluster.__init__ CALLED", file=sys.stderr)
-        print("="*80 + "\n", file=sys.stderr)
+        common.warning("CNDB-17227 DEBUG: =============================================================="
+        common.warning("CNDB-17227 DEBUG: DseCluster.__init__ CALLED")
+        common.warning("CNDB-17227 DEBUG: =============================================================="
         self.load_credentials_from_file(options.dse_credentials_file if options else None)
-        print(f"DEBUG: After load_credentials_from_file: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}", file=sys.stderr)
-        print("DEBUG: DseCluster.__init__ called", file=sys.stderr)
+        common.warning(f"CNDB-17227 DEBUG: After load_credentials_from_file: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}")
+        common.warning("CNDB-17227 DEBUG: DseCluster.__init__ called")
         if options and options.dse_username:
             self.dse_username = options.dse_username
         if options and options.dse_password:
             self.dse_password = options.dse_password
-        print(f"DEBUG: After options override: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}", file=sys.stderr)
+        common.warning(f"CNDB-17227 DEBUG: After options override: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}")
         self.opscenter = options.opscenter if options else None
         self._cassandra_version = None
         self._cassandra_version = derived_cassandra_version
@@ -137,14 +136,13 @@ class DseCluster(Cluster):
         return setup_dse(version, self.dse_username, self.dse_password, verbose)
 
     def load_credentials_from_file(self, dse_credentials_file):
-        import sys
-        print(f"DEBUG: load_credentials_from_file called with: {dse_credentials_file}", file=sys.stderr)
+        common.warning(f"CNDB-17227 DEBUG: load_credentials_from_file called with: {dse_credentials_file}")
         # Use .dse.ini if it exists in the default .ccm directory.
         if dse_credentials_file is None:
             creds_file = os.path.join(common.get_default_path(), '.dse.ini')
-            print(f"DEBUG: Checking for .dse.ini at: {creds_file}", file=sys.stderr)
+            common.warning(f"CNDB-17227 DEBUG: Checking for .dse.ini at: {creds_file}")
             if os.path.isfile(creds_file):
-                print(f"DEBUG: .dse.ini file exists: {os.path.isfile(creds_file)}", file=sys.stderr)
+                common.warning(f"CNDB-17227 DEBUG: .dse.ini file exists: {os.path.isfile(creds_file)}")
                 dse_credentials_file = creds_file
 
         if dse_credentials_file is not None:
@@ -153,10 +151,10 @@ class DseCluster(Cluster):
             if parser.has_section('dse_credentials'):
                 if parser.has_option('dse_credentials', 'dse_username'):
                     self.dse_username = parser.get('dse_credentials', 'dse_username')
-                    print(f"DEBUG: Set dse_username to: {self.dse_username}", file=sys.stderr)
+                    common.warning(f"CNDB-17227 DEBUG: Set dse_username to: {self.dse_username}")
                 if parser.has_option('dse_credentials', 'dse_password'):
                     self.dse_password = parser.get('dse_credentials', 'dse_password')
-                    print(f"DEBUG: Set dse_password to: {self.dse_password[:5]}...", file=sys.stderr)
+                    common.warning(f"CNDB-17227 DEBUG: Set dse_password to: {self.dse_password[:5]}...")
             else:
                 common.warning("{} does not contain a 'dse_credentials' section.".format(dse_credentials_file))
 
@@ -253,11 +251,10 @@ class DseCluster(Cluster):
 
 
 def setup_dse(version, username, password, verbose=False):
-    import sys
-    print("\n" + "="*80, file=sys.stderr)
+    common.warning("CNDB-17227 DEBUG: =============================================================="
     pwd_display = "***" if password else "None"
     print(f"CNDB-17227 DEBUG: setup_dse() called with username={username}, password={pwd_display}", file=sys.stderr)
-    print("="*80 + "\n", file=sys.stderr)
+    common.warning("CNDB-17227 DEBUG: =============================================================="
     (cdir, version, fallback) = repository.__setup(version, verbose)
     if cdir:
         return (cdir, version)
