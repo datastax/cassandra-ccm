@@ -135,6 +135,11 @@ class DseCluster(Cluster):
         super(DseCluster, self).__init__(path, name, partitioner, install_dir, create_directory, version, verbose, options=options)
 
     def load_from_repository(self, version, verbose):
+        # Load credentials from file if not already set
+        if not hasattr(self, "dse_username") or self.dse_username is None:
+            common.warning("CNDB-17227 DEBUG: load_from_repository() - credentials not set, loading from file")
+            print("CNDB-17227 PRINT: load_from_repository() - credentials not set, loading from file", flush=True)
+            self.load_credentials_from_file(None)
         if self.opscenter is not None:
             odir = setup_opscenter(self.opscenter, self.dse_username, self.dse_password, verbose)
             target_dir = os.path.join(self.get_path(), 'opscenter')
