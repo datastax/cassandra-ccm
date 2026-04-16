@@ -112,16 +112,22 @@ class DseCluster(Cluster):
 
     def __init__(self, path, name, partitioner=None, install_dir=None, create_directory=True, version=None, verbose=False, derived_cassandra_version=None, options=None):
         common.warning("CNDB-17227 DEBUG: ==============================================================")
+        print("CNDB-17227 PRINT: ==============================================================", flush=True)
         common.warning("CNDB-17227 DEBUG: DseCluster.__init__ CALLED")
+        print("CNDB-17227 PRINT: DseCluster.__init__ CALLED", flush=True)
         common.warning("CNDB-17227 DEBUG: ==============================================================")
+        print("CNDB-17227 PRINT: ==============================================================", flush=True)
         self.load_credentials_from_file(options.dse_credentials_file if options else None)
         common.warning(f"CNDB-17227 DEBUG: After load_credentials_from_file: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}")
+        print(f"CNDB-17227 PRINT: After load_credentials_from_file: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}", flush=True)
         common.warning("CNDB-17227 DEBUG: DseCluster.__init__ called")
+        print("CNDB-17227 PRINT: DseCluster.__init__ called", flush=True)
         if options and options.dse_username:
             self.dse_username = options.dse_username
         if options and options.dse_password:
             self.dse_password = options.dse_password
         common.warning(f"CNDB-17227 DEBUG: After options override: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}")
+        print(f"CNDB-17227 PRINT: After options override: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}", flush=True)
         self.opscenter = options.opscenter if options else None
         self._cassandra_version = None
         self._cassandra_version = derived_cassandra_version
@@ -134,6 +140,7 @@ class DseCluster(Cluster):
             target_dir = os.path.join(self.get_path(), 'opscenter')
             shutil.copytree(odir, target_dir)
             common.warning(f"CNDB-17227 DEBUG: load_from_repository() about to call setup_dse with self.dse_username={getattr(self, 'dse_username', 'NOT SET')}, self.dse_password={'SET' if getattr(self, 'dse_password', None) else 'NOT SET'}")
+            print(f"CNDB-17227 PRINT: load_from_repository() about to call setup_dse with self.dse_username={getattr(self, 'dse_username', 'NOT SET')}, self.dse_password={'SET' if getattr(self, 'dse_password', None) else 'NOT SET'}", flush=True)
         return setup_dse(version, self.dse_username, self.dse_password, verbose)
 
     def load_credentials_from_file(self, dse_credentials_file):
@@ -147,6 +154,7 @@ class DseCluster(Cluster):
             print(f"CNDB-17227 PRINT: get_default_path() returned: {common.get_default_path()}", flush=True)
             if os.path.isfile(creds_file):
                 common.warning(f"CNDB-17227 DEBUG: .dse.ini file exists: {os.path.isfile(creds_file)}")
+                print(f"CNDB-17227 PRINT: .dse.ini file exists: {os.path.isfile(creds_file)}", flush=True)
                 print(f"CNDB-17227 PRINT: .dse.ini file exists: True", flush=True)
                 dse_credentials_file = creds_file
 
@@ -161,6 +169,7 @@ class DseCluster(Cluster):
                 if parser.has_option('dse_credentials', 'dse_password'):
                     self.dse_password = parser.get('dse_credentials', 'dse_password')
                     common.warning(f"CNDB-17227 DEBUG: Set dse_password to: {self.dse_password[:5]}...")
+                    print(f"CNDB-17227 PRINT: Set dse_password to: {self.dse_password[:5]}...", flush=True)
             else:
                 common.warning("{} does not contain a 'dse_credentials' section.".format(dse_credentials_file))
 
@@ -258,12 +267,15 @@ class DseCluster(Cluster):
 
 def setup_dse(version, username, password, verbose=False):
     common.warning("CNDB-17227 DEBUG: ==============================================================")
+    print("CNDB-17227 PRINT: ==============================================================", flush=True)
     pwd_display = "***" if password else "None"
     common.warning(f"CNDB-17227 DEBUG: setup_dse() called with username={username}, password={pwd_display}")
+    print(f"CNDB-17227 PRINT: setup_dse() called with username={username}, password={pwd_display}", flush=True)
     # Fail fast if credentials are missing
     if username is None or password is None:
         raise ValueError(f"CNDB-17227 ERROR: DSE credentials missing! username={username!r}, password={'SET' if password else 'None'}")
     common.warning("CNDB-17227 DEBUG: ==============================================================")
+    print("CNDB-17227 PRINT: ==============================================================", flush=True)
     (cdir, version, fallback) = repository.__setup(version, verbose)
     if cdir:
         return (cdir, version)
