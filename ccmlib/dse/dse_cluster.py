@@ -128,6 +128,9 @@ class DseCluster(Cluster):
             self.dse_password = options.dse_password
         common.warning(f"CNDB-17227 DEBUG: After options override: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}")
         print(f"CNDB-17227 PRINT: After options override: username={getattr(self, 'dse_username', 'NOT SET')}, password={getattr(self, 'dse_password', 'NOT SET')}", flush=True)
+        # Check if credentials were loaded
+        if getattr(self, 'dse_username', None) is None or getattr(self, 'dse_password', None) is None:
+            raise ValueError("CNDB-17227 ERROR IN __INIT__: DSE credentials missing! username={}, password={}".format(getattr(self, 'dse_username', None), 'SET' if getattr(self, 'dse_password', None) else 'None'))
         self.opscenter = options.opscenter if options else None
         self._cassandra_version = None
         self._cassandra_version = derived_cassandra_version
