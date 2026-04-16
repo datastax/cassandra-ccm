@@ -138,12 +138,16 @@ class DseCluster(Cluster):
 
     def load_credentials_from_file(self, dse_credentials_file):
         common.warning(f"CNDB-17227 DEBUG: load_credentials_from_file called with: {dse_credentials_file}")
+        print(f"CNDB-17227 PRINT: load_credentials_from_file called with: {dse_credentials_file}", flush=True)
         # Use .dse.ini if it exists in the default .ccm directory.
         if dse_credentials_file is None:
             creds_file = os.path.join(common.get_default_path(), '.dse.ini')
             common.warning(f"CNDB-17227 DEBUG: Checking for .dse.ini at: {creds_file}")
+            print(f"CNDB-17227 PRINT: Checking for .dse.ini at: {creds_file}", flush=True)
+            print(f"CNDB-17227 PRINT: get_default_path() returned: {common.get_default_path()}", flush=True)
             if os.path.isfile(creds_file):
                 common.warning(f"CNDB-17227 DEBUG: .dse.ini file exists: {os.path.isfile(creds_file)}")
+                print(f"CNDB-17227 PRINT: .dse.ini file exists: True", flush=True)
                 dse_credentials_file = creds_file
 
         if dse_credentials_file is not None:
@@ -153,6 +157,7 @@ class DseCluster(Cluster):
                 if parser.has_option('dse_credentials', 'dse_username'):
                     self.dse_username = parser.get('dse_credentials', 'dse_username')
                     common.warning(f"CNDB-17227 DEBUG: Set dse_username to: {self.dse_username}")
+                    print(f"CNDB-17227 PRINT: Set dse_username to: {self.dse_username}", flush=True)
                 if parser.has_option('dse_credentials', 'dse_password'):
                     self.dse_password = parser.get('dse_credentials', 'dse_password')
                     common.warning(f"CNDB-17227 DEBUG: Set dse_password to: {self.dse_password[:5]}...")
