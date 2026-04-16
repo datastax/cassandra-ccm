@@ -113,6 +113,12 @@ class DseCluster(Cluster):
         super(DseCluster, self).__init__(path, name, partitioner, install_dir, create_directory, version, verbose, options=options)
 
     def load_from_repository(self, version, verbose):
+        # Load DSE credentials from .dse.ini if not already set
+        # This is needed when the cluster class is changed from Cluster to DseCluster
+        # during upgrade tests (which doesn't call __init__)
+        if not hasattr(self, 'dse_username') or self.dse_username is None:
+            self.load_credentials_from_file(None)
+
         if self.opscenter is not None:
             odir = setup_opscenter(self.opscenter, self.dse_username, self.dse_password, verbose)
             target_dir = os.path.join(self.get_path(), 'opscenter')
