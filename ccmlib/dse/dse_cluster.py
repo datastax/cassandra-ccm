@@ -165,6 +165,8 @@ class DseCluster(Cluster):
                 print(f"CNDB-17227 PRINT: .dse.ini file exists: {os.path.isfile(creds_file)}", flush=True)
                 print(f"CNDB-17227 PRINT: .dse.ini file exists: True", flush=True)
                 dse_credentials_file = creds_file
+            else:
+                raise ValueError(f"CNDB-17227 ERROR in load_credentials_from_file: .dse.ini file NOT FOUND at {creds_file}")
 
         if dse_credentials_file is not None:
             parser = ConfigParser.RawConfigParser()
@@ -174,6 +176,8 @@ class DseCluster(Cluster):
                     self.dse_username = parser.get('dse_credentials', 'dse_username')
                     common.warning(f"CNDB-17227 DEBUG: Set dse_username to: {self.dse_username}")
                     print(f"CNDB-17227 PRINT: Set dse_username to: {self.dse_username}", flush=True)
+                    if not self.dse_username:
+                        raise ValueError("CNDB-17227 ERROR in load_credentials_from_file: dse_username is EMPTY!")
                 if parser.has_option('dse_credentials', 'dse_password'):
                     self.dse_password = parser.get('dse_credentials', 'dse_password')
                     common.warning(f"CNDB-17227 DEBUG: Set dse_password to: {self.dse_password[:5]}...")
