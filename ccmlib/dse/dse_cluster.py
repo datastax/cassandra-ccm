@@ -133,6 +133,7 @@ class DseCluster(Cluster):
             odir = setup_opscenter(self.opscenter, self.dse_username, self.dse_password, verbose)
             target_dir = os.path.join(self.get_path(), 'opscenter')
             shutil.copytree(odir, target_dir)
+            common.warning(f"CNDB-17227 DEBUG: load_from_repository() about to call setup_dse with self.dse_username={getattr(self, 'dse_username', 'NOT SET')}, self.dse_password={'SET' if getattr(self, 'dse_password', None) else 'NOT SET'}")
         return setup_dse(version, self.dse_username, self.dse_password, verbose)
 
     def load_credentials_from_file(self, dse_credentials_file):
