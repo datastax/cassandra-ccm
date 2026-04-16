@@ -251,10 +251,10 @@ class DseCluster(Cluster):
 
 
 def setup_dse(version, username, password, verbose=False):
-    common.warning("CNDB-17227 DEBUG: =============================================================="
+    common.warning("CNDB-17227 DEBUG: ==============================================================")
     pwd_display = "***" if password else "None"
     print(f"CNDB-17227 DEBUG: setup_dse() called with username={username}, password={pwd_display}", file=sys.stderr)
-    common.warning("CNDB-17227 DEBUG: =============================================================="
+    common.warning("CNDB-17227 DEBUG: ==============================================================")
     (cdir, version, fallback) = repository.__setup(version, verbose)
     if cdir:
         return (cdir, version)
