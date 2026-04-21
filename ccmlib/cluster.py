@@ -28,6 +28,7 @@ import subprocess
 import threading
 import time
 from collections import OrderedDict, defaultdict, namedtuple
+
 from ccmlib.version import LooseVersion
 
 import yaml
@@ -837,7 +838,7 @@ class Cluster(object):
         self._config_options['client_encryption_options'] = ssl_options
         self._update_config()
 
-    def enable_internode_ssl(self, node_ssl_path):
+    def enable_internode_ssl(self, node_ssl_path, enable_legacy_ssl_storage_port=False):
         shutil.copyfile(os.path.join(node_ssl_path, 'keystore.jks'), os.path.join(self.get_path(), 'internode-keystore.jks'))
         shutil.copyfile(os.path.join(node_ssl_path, 'truststore.jks'), os.path.join(self.get_path(), 'internode-truststore.jks'))
         node_ssl_options = {
@@ -848,7 +849,8 @@ class Cluster(object):
             'truststore_password': 'cassandra'
         }
 
-        if self.cassandra_version() >= '4.0':
+        # Guard against yaml settings incompatible with DSE (Node is a C* node vs DseNode)
+        if self.cassandra_version() >= '4.0' and self.getNodeClass() is Node:
             node_ssl_options['enabled'] = True
 
         self._config_options['server_encryption_options'] = node_ssl_options
