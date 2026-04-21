@@ -177,6 +177,15 @@ class DseCluster(Cluster):
             node.enable_aoss(thrift_port=10000 + port_offset, web_ui_port=9077 + port_offset)
         self._update_config()
 
+    def enable_internode_ssl(self, node_ssl_path, enable_legacy_ssl_storage_port=False):
+        super().enable_internode_ssl(node_ssl_path, enable_legacy_ssl_storage_port)
+        if self.version() >= '6.9' and enable_legacy_ssl_storage_port:
+            self._config_options['server_encryption_options']['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
+        else:
+            self._config_options['server_encryption_options'].remove('enable_legacy_ssl_storage_port')
+
+        self._update_config()
+
     def set_dse_configuration_options(self, values=None):
         if values is not None:
             self._dse_config_options = common.merge_configuration(self._dse_config_options, values)
