@@ -761,16 +761,23 @@ def get_supported_jdk_versions_internal(path, pattern):
     return None
 
 
-def get_supported_jdk_versions_from_dist(install_dir, cassandra_version=None):
+def get_supported_jdk_versions_from_dist(install_dir):
     """
     Return the supported Java versions from build.xml (source distributions)
     or from cassandra.in.sh (binary distributions) if such information is present (5.0+ for source, 5.1+ for binary).
     """
-    # Try product-specific supported_jdk_versions (e.g., DSE, HCD)
-    versions = extension.supported_jdk_versions(install_dir, cassandra_version)
-    if versions is not None:
-        return versions
-
+    # if we detect DSE then we try to parse VERSION.txt file
+    if os.path.exists(os.path.join(install_dir, BIN_DIR, 'dse')):
+        path_to_version = os.path.join(install_dir, 'VERSION.txt')
+        if os.path.exists(path_to_version):
+            with open(path_to_version, 'r') as file:
+                v = file.readline().strip()
+                if LooseVersion(v) >= LooseVersion('6.9'):
+                    # DSE 6.9 supports only Java 11
+                    return [11]
+                else:
+                    # it's DSE 6.8 or earlier, only Java 8 is supported
+                    return [8]
     # source distributions have supported Java versions specified in build.xml since 5.0
     versions = get_supported_jdk_versions_internal(os.path.join(install_dir, 'build.xml'),
                                                    'name="java\\.supported" value="([0-9.,]+)"')
@@ -790,7 +797,7 @@ def get_supported_jdk_versions_from_dist(install_dir, cassandra_version=None):
 def get_supported_jdk_versions(cassandra_version, install_dir, for_build, env):
     build_versions = None
     if install_dir:
-        build_versions = get_supported_jdk_versions_from_dist(install_dir, cassandra_version)
+        build_versions = get_supported_jdk_versions_from_dist(install_dir)
     run_versions = build_versions
 
     # If the supported Java versions are not available from the distribution, use the known defaults
