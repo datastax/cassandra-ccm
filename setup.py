@@ -32,7 +32,7 @@ if system() == "Windows":
     ccmscript = 'ccm.py'
 
 setup(
-    setup_requires=['pbr>=5.8.1'],
+    setup_requires=['pbr>=5.8.1,<7.1'],
     scripts=[ccmscript],
     pbr=True,
 )
