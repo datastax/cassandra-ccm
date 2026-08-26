@@ -27,7 +27,7 @@ import subprocess
 import tarfile
 import tempfile
 from argparse import ArgumentError
-from distutils.version import LooseVersion
+from ccmlib.version import LooseVersion
 from six.moves import urllib
 
 from ccmlib import common, repository
@@ -197,6 +197,15 @@ class DseCluster(Cluster):
             node.enable_aoss(thrift_port=10000 + port_offset, web_ui_port=9077 + port_offset)
         self._update_config()
 
+    def enable_internode_ssl(self, node_ssl_path, enable_legacy_ssl_storage_port=False):
+        super().enable_internode_ssl(node_ssl_path, enable_legacy_ssl_storage_port)
+        if self.version() >= '6.9' and enable_legacy_ssl_storage_port:
+            self._config_options['server_encryption_options']['enable_legacy_ssl_storage_port'] = enable_legacy_ssl_storage_port
+        else:
+            self._config_options['server_encryption_options'].remove('enable_legacy_ssl_storage_port')
+
+        self._update_config()
+
     def set_dse_configuration_options(self, values=None):
         if values is not None:
             self._dse_config_options = common.merge_configuration(self._dse_config_options, values)
@@ -267,7 +276,7 @@ def get_dse_cassandra_version(install_dir):
     (output, stderr) = subprocess.Popen([dse_cmd, "cassandra", '-v'], stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
     # just take the last line to avoid any possible log lines
     output = output.decode('utf-8').rstrip().split('\n')[-1]
-    match = re.search('^([0-9.]+)(?:-.*)?', str(output))
+    match = re.search(r'^([0-9]+(?:\.[0-9]+){0,2})(?:-.*)?', str(output))
     if match:
         return LooseVersion(match.group(1))
     raise ArgumentError("Unable to determine Cassandra version using `bin/dse cassandra -v` from output: %s.\n\tstdout: '%s'\n\tstderr: '%s'"

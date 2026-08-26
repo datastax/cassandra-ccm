@@ -25,7 +25,7 @@ import shutil
 import tarfile
 import tempfile
 from argparse import ArgumentError
-from distutils.version import LooseVersion
+from ccmlib.version import LooseVersion
 
 from ccmlib import common, repository
 from ccmlib.cluster import Cluster
