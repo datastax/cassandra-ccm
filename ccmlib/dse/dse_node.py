@@ -26,7 +26,7 @@ import signal
 import subprocess
 
 import yaml
-from distutils.version import LooseVersion
+from ccmlib.version import LooseVersion
 
 from ccmlib import common, extension, node
 from ccmlib.node import Node, handle_external_tool_process
@@ -93,7 +93,13 @@ class DseNode(Node):
         return dir
 
     def address_for_version(self, version):
-        return "{}".format(str(self.address()));
+        """
+        Returns the address in the correct version format. Either IP or IP:PORT
+        """
+        if version >= LooseVersion('4.0'):
+            return self.address_and_port()
+        else:
+            return "{}".format(str(self.address()))
 
     def set_workloads(self, workloads):
         self.workloads = workloads
@@ -146,7 +152,24 @@ class DseNode(Node):
 
         We want to provide a higher default timeout when this is called on DSE.
         """
-        super(DseNode, self).watch_log_for_alive(nodes, from_mark=from_mark, timeout=timeout, filename=filename)
+        # DSE nodes in their logs are always displaying address with port
+        tofind = nodes if isinstance(nodes, list) else [nodes]
+        tofind = ["%s.* is now UP" % node.address() for node in tofind]
+        self.watch_log_for(tofind, from_mark=from_mark, timeout=timeout, filename=filename)
+
+    def watch_log_for_death(self, nodes, from_mark=None, timeout=600, filename='system.log'):
+        """
+        Watch the log of this node until it detects that the provided other
+        nodes are marked dead. This method returns nothing but throw a
+        TimeoutError if all the requested node have not been found to be
+        marked dead before timeout sec.
+        A mark as returned by mark_log() can be used as the from_mark
+        parameter to start watching the log from a given position. Otherwise
+        the log is watched from the beginning.
+        """
+        tofind = nodes if isinstance(nodes, list) else [nodes]
+        tofind = ["%s is now [dead|DOWN]" % node.address() for node in tofind]
+        self.watch_log_for(tofind, from_mark=from_mark, timeout=timeout, filename=filename)
 
     def get_launch_bin(self):
         cdir = self.get_install_dir()

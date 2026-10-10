@@ -328,7 +328,7 @@ class Node(object):
         if version >= LooseVersion('4.0'):
             return self.address_and_port()
         else:
-            return "{}".format(str(self.address()));
+            return "{}".format(str(self.address()))
 
     def address_for_current_version(self):
         """
@@ -845,7 +845,7 @@ class Node(object):
                 common.assert_socket_available(itf)
 
         if wait_other_notice:
-            marks = [(node, node.mark_log()) for node in list(self.cluster.nodes.values()) if node.is_live()]
+            marks = [(node, node.mark_log()) for node in list(self.cluster.nodes.values()) if node.is_live() and node is not self]
         else:
             marks = []
 
