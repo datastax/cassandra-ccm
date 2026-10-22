@@ -115,3 +115,21 @@ class TestCommon(ccmtest.Tester):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestDseDownloadUrl(unittest.TestCase):
+
+    def test_full_version_only(self):
+        from ccmlib.dse.dse_cluster import dse_download_url
+        self.assertEqual("https://h/r/dse-6.9.20-bin.tar.gz", dse_download_url("https://h/r/dse-%s-bin.tar.gz", "6.9.20"))
+
+    def test_major_minor_placeholder(self):
+        from ccmlib.dse.dse_cluster import dse_download_url
+        self.assertEqual("https://h/r/6.9/dse-6.9.20-bin.tar.gz", dse_download_url("https://h/r/{major_minor}/dse-%s-bin.tar.gz", "6.9.20"))
+        self.assertEqual("https://h/r/5.1/dse-5.1.9-bin.tar.gz", dse_download_url("https://h/r/{major_minor}/dse-%s-bin.tar.gz", "5.1.9"))
+
+    def test_major_minor_placeholder_bad_version(self):
+        from ccmlib.dse.dse_cluster import dse_download_url
+        from ccmlib.common import ArgumentError
+        with self.assertRaises(ArgumentError):
+            dse_download_url("https://h/r/{major_minor}/dse-%s-bin.tar.gz", "abc")

@@ -274,12 +274,26 @@ def get_dse_cassandra_version(install_dir):
                         % (install_dir, output, stderr))
 
 
+def dse_download_url(template, version):
+    """
+    Build the DSE tarball URL from a template. '%s' is replaced with the full version (e.g. 6.9.20) and the optional
+    '{major_minor}' placeholder with its major.minor part (e.g. 6.9), for repositories that group the tarballs by
+    release line such as https://host/repo/{major_minor}/dse-%s-bin.tar.gz
+    """
+    match = re.match(r'^(\d+\.\d+)', str(version))
+    if '{major_minor}' in template:
+        if not match:
+            raise ArgumentError("Unable to determine the major.minor version from '%s' for url %s" % (version, template))
+        template = template.replace('{major_minor}', match.group(1))
+    return template % version
+
+
 def download_dse_version(version, username, password, verbose=False):
     url = DSE_ARCHIVE
     if repository.CCM_CONFIG.has_option('repositories', 'dse'):
         url = repository.CCM_CONFIG.get('repositories', 'dse')
 
-    url = url % version
+    url = dse_download_url(url, version)
     if url.startswith('file://~'):
         url = 'file://' + os.path.expanduser(url[7:])
     _, target = tempfile.mkstemp(suffix=".tar.gz", prefix="ccm-")
